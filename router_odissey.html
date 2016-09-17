@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html>
+  
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <title>Router Odissey</title>
+    <link href="css/main.css" rel="stylesheet" type="text/css">
+  </head>
+
+  <body>
+    <article id="main">
+      <h1>Router Odyssey</h1>
+      <h2>03 Feb 2009</h2>
+      <br>
+      <p><b>DISCLAIMER:</b> All characters appearing in this work are
+        fictitious. Any resemblance to real persons, living or dead, is
+        purely coincidental. All the information provided on this site
+        are for educational purposes only.</p>
+      <p>More importantly, the site is in no way
+        responsible for any misuse of the information: the objective of
+        the article is to encourage a better defense attitude among the
+        users and to help preventing security breaches.
+        These information shall not be used for causing any
+        kind of damage directly or indirectly.</p>
+      <hr size="2" width="100%">
+      <p>It was a single-digit September's day. Walking in the streets
+        you could feel some new cool breeze flowing on the
+        not yet covered skin. It was a feeling Luke always loved, <em>"Seems
+          like we can breathe again..."</em></p>
+      <p> September is the best month to pass in the city: summer season
+        is ending, driving away the muggy weather, and a little bit of
+        energy and enthusiasm are permitted to return.</p>
+      <p> <strong>When common objects hides little secrets...</strong></p>
+      <p><em>"I need a new ADSL router, I feel cut off."</em> The day
+        before, won by boredom and curiosity, he decided to explore more
+        thoroughly his home router.</p>
+      <p>Maybe you don't know that most <em>'networked devices'</em> on
+        the market, including routers, modems or even printers, use as
+        operating system some lightweight version of Linux or NetBSD. If
+        you try an Nmap scan of your ADSL modem, you'll probably receive an
+        output similar to this one:</p>
+      <pre class="code-snippet">Starting Nmap 4.76 ( http://nmap.org ) at 2009-02-01 15:35 CET
+Interesting ports on 192.168.1.1:
+Not shown: 995 closed ports
+PORT     STATE SERVICE
+21/tcp   open  ftp
+22/tcp   open  ssh
+23/tcp   open  telnet
+80/tcp   open  http
+5431/tcp open  unknown
+Device type: Router|WAP
+Running: Linux 2.4.X
+OS details: Linux 2.4.20 - 2.4.24
+Network Distance: 1 hop<br></pre>
+      <p>At least this was the output Luke received after scanning his
+        Trust MD-5700. Port 80 was nothing new, he already used the web
+        service several time to configure his internet connection.</p>
+      <p>Now he was going to try ssh. A telnet connection to these
+        devices is not very exciting, not only for the use of an
+        insecure channel but for the annoying habit of telnet to send
+        only one character at a time, making the textual session similar
+        to playing the last EA title on an old GeForce card (personal experience).</p>
+      <pre class="code-snippet">ssh root@192.168.1.1</pre>
+      <p>After the usual request about the key fingerprint for an
+        unknown host, a BusyBox shell welcomed him. <i>"Let's give a
+          look..."</i></p>
+      <pre class="code-snippet">BusyBox v0.61.pre (2005.05.30-08:31+0000) Built-in shell (ash)
+Enter 'help' for a list of built-in commands.</pre>
+      <p><i>"First of all I need some informations about the kernel
+          version and the CPU architecture used by the device."</i></p>
+      <pre class="code-snippet"># ls
+bin etc proc usr dev lib sbin var</pre>
+      <p><i>"Good! Seems like the /proc filesystem is mounted. I can get
+          the informations I need from here:"</i></p>
+      <pre class="code-snippet"># cat /proc/version
+Linux version 2.4.17_mvl21-malta-mips_fp_le (guest1@localhost) (gcc version 2.95.3
+20010315 (release/MontaVista)) #1 Thu Mar 25 18:10:36 CST 2004
+# cat /proc/cpuinfo
+processor               : 0
+cpu model               : AR7 V1.0
+BogoMIPS                : 203.81
+wait instruction        : no
+microsecond timers      : yes
+extra interrupt vector  : yes
+hardware watchpoint     : yes
+VCED exceptions         : not available
+VCEI exceptions         : not available</pre>
+      <p><i>"Umm, it's a MontaVista..."</i> <a
+          href="http://www.mvista.com/">MontaVista</a> is a commercial
+        Linux distribution, very common on ADSL routers and modems used
+        at home. One of their product is an IDE based on Eclipse called
+        DevRocket, for the cross-development of embedded programs. <i>"Might
+          be interesting to ask for an evaluation copy, but I don't want
+          to wait weeks for the delivery."</i></p>
+      <p>The processor was an AR7, a mips architecture. Usually, on
+        these systems, BusyBox and other programs use UClib, a
+        lightweight version of the C standard library. <i>"With the
+          correct toolchain I should be able to run my programs on this
+          thing, even a simple tool like netcat should allow me to do
+          funny experiments..."</i></p>
+      <p>After a quick search with Google, and some useless downloads
+        (binaries for old version of Linux), he found <a
+          href="http://www.uclibc.org/downloads/binaries/">http://www.uclibc.org/downloads/binaries/</a>,
+        where it is possible to download various UClib toolchain, to
+        cross-compilate programs for multiple architectures. In
+        particular he chose <a
+href="http://www.uclibc.org/downloads/binaries/0.9.30.1/cross-compiler-mipsel.tar.bz2">cross-compiler-mipsel.tar.bz2</a>
+        for little endian MIPS processors.</p>
+      <p> <strong>How to break a router, in a few little steps.</strong></p>
+      <p>Extracting the archive a new directory is created, containing
+        the cross-compilation version of gcc, objdump and other common
+        tools. <i>"I now need a vanilla version of netcat"</i>, and
+        pointed his browser to <a href="http://netcat.sourceforge.net">netcat.sourceforge.net</a>, <i>"not using
+          strange libraries is perfect for a first try."</i></p>
+      <p> After extracting netcat, Luke looked at the contents with a
+        bit of disappointment: <i>"Nah, it uses the autotools. I hope
+          it's possible to shortcut the compilation..."</i> In the
+        source directory only few C files and headers were present. <i>"Let's
+          try a standard compilation:"</i></p>
+      <pre class="code-snippet">mipsel-gcc *.c -o nc</pre>
+      <p>The compiler complained about the undefined VERSION value in
+        the misc.h header. So Luke added a personalized define:</p>
+      <pre class="code-snippet">#define VERSION "v 7.0 MIPSle, by TheRouterHacker"<br></pre>
+      <p>This time the compilation completed successfully, apart from a
+        few warnings about missing 'random routines' (not very important
+        in this context). <i>"I wonder why they continue to use
+          autotools, they just slow down the compilation. And really,
+          what system is gonna miss a working strncpy today?"</i></p>
+      <p>Luke returned to it's now-deauthenticated ssh session, and
+        reconnected. To update the firmware, many routers include
+        standard file transfer tools, like wget, ftp or tftp. In fact
+        both wget and tftp were ready to be used. <i>"I don't want to
+          set up an http server just to transfer a file, let's see if I
+          still remember some tftp tricks..." </i></p>
+      <pre class="code-snippet">luke@pc$ netwox 167 -r netcat/src/
+root@router# cd /var/tmp &amp;&amp; tftp -g nc 192.168.1.5</pre>
+      <p>Netwox is a little tool that sometimes can come in handy. It
+        includes about 200 functions, the 167 being a simple tftp
+        server, a quick and dirty solution. <br>
+      </p>
+      <p>With the second command he transferred his
+        custom version of netcat to the router, in the ramfs /var, since
+        the other mount points were read-only squash filesystems. The
+        only inconvenient is that every file loaded here dissolves after
+        a reboot (on the other hand this makes the forensic analysis of
+        the device more difficult).</p>
+      <pre class="code-snippet">router# chmod +x nc
+router# ./nc -h
+GNU netcat v 7.0 MIPSle, by TheRouterHacker, a rewrite of the famous networking tool.
+Basic usages:
+connect to somewhere:  ./nc [options] hostname port [port] ...
+listen for inbound:    ./nc -l -p port [options] [hostname] [port] ...
+tunnel to somewhere:   ./nc -L hostname:port -p port [options]
+
+Mandatory arguments to long options are mandatory for short options too.
+Options:
+  -c, --close                close connection on EOF from stdin
+  -e, --exec=PROGRAM         program to exec after connect
+  -g, --gateway=LIST         source-routing hop point[s], up to 8
+  -G, --pointer=NUM          source-routing pointer: 4, 8, 12, ...
+  -h, --help                 display this help and exit
+  -i, --interval=SECS        delay interval for lines sent, ports scanned
+  -l, --listen               listen mode, for inbound connects
+  -L, --tunnel=ADDR : PORT   forward local port to remote address
+  -n, --dont-resolve         numeric-only IP addresses, no DNS
+  -o, --output=FILE          output hexdump traffic to FILE (implies -x)
+  -p, --local-port=NUM       local port number
+  -r, --randomize            randomize local and remote ports
+  -s, --source=ADDRESS       local source address (ip or hostname)
+  -t, --tcp                  TCP mode (default)
+  -T, --telnet               answer using TELNET negotiation
+  -u, --udp                  UDP mode
+  -v, --verbose              verbose (use twice to be more verbose)
+  -V, --version              output version information and exit
+  -x, --hexdump              hexdump incoming and outgoing traffic
+  -w, --wait=SECS            timeout for connects and final net reads
+  -z, --zero                 zero-I/O mode (used for scanning)
+
+Remote port number can also be specified as range.  Example: '1-1024'</pre>
+      <p>Luke smiled, <i>"It works! Now i just need a good idea on how
+          to put all this to good use. Let's see if other tools are
+          available on the system..."</i></p>
+      <p><strong>Fast forward to now.</strong></p>
+      <p><i>"Damn! I could not help but play with the firmware
+          configuration tools. Now the router is bricked and of course
+          there is no documentation on how to revive him..."</i></p>
+      <div class="image" align="center"><img alt="Trust Router:
+          Requiescat in pace" title="Requiescat in pace"
+          src="images/trust-router.png" height="290" width="290"> <br>
+        Requiescat in pace.</div>
+      <p><b>NOTE:</b> This part of the story is based on real facts.
+        Unfortunately the router retired ahead of time, and honestly I
+        still do not know what I touched that altered the flash memory.
+        These devices are very fragile, so do not execute unknown
+        commands or tools even if present in seemingly harmless
+        directories. Now the device is only accessible via <a
+          href="http://www.seattlewireless.net/ADAM2">ADAM2</a>, so if
+        someone with the same router model would like to help me fix it,
+        a few configuration values should suffice, he can drop me an
+        email...</p>
+      <p><i>"Here we are"</i>, Luke said, in front of the store of his
+        favourite hardware reseller. He was in friendly terms with the
+        owner and had done a few little jobs for him, sometimes being
+        paid in kind.</p>
+      <p><i>"What brings you here? What have you destroyed this time?"</i>
+        joked the owner, knowing Luke's hobbies. <i>"Hey, this time it
+          wasn't my fault!"</i></p>
+      <div class="image" align="center"><img alt="DLink Router: In all
+          its splendor" title="The DLink router In all its splendor"
+          src="images/dlink-router.png" height="290" width="290"> <br>
+        The DLink router in all its splendor.</div>
+      <p>Luke chose a DSL-2542B, one of the last DLink models. Is common
+        knowledge that DLink devices ship with some version of Linux,
+        they also include a copy of th GPL license inside the box of
+        their products. <i>"If you continue like this, you are going to
+          constitute a 30% of my business,"</i> the owner said a he
+        walked away with the router.</p>
+      <p><b>Back home.</b><br>
+      </p>
+      <p>Also this router provides an ssh server to configure it from
+        command line. <i>"Let's see:"</i></p>
+      <pre style="text-align:left;">Main Menu
+
+1.  ADSL Link State
+2.  LAN
+3.  WAN
+4.  DNS Server
+5.  Route Setup
+6.  NAT
+7.  Firewall
+8.  Quality Of Service
+9.  Management
+10. Passwords
+11. Diag
+12. Reset to Default
+13. Save and Reboot
+14. Exit
+ -&gt;</pre>
+      <p><i>"They use a menu-driven interface that imitates the
+          configuration web page, but i need a shell access to the
+          device. What if I insert a random command?"</i></p>
+      <pre class="code-snippet"> -&gt; foo
+foo: not found
+
+Hit &lt;enter&gt; to continue</pre>
+      <p><i>"Umm, it seems like a file not found error."</i></p>
+      <pre class="code-snippet"> -&gt; sh
+app: sh
+
+BusyBox v1.00 (2008.01.04-02:23+0000) Built-in shell (msh)
+Enter 'help' for a list of built-in commands.
+
+#</pre>
+      <p><i>"Lucky! Now I have my shell. This BusyBox seems much more
+          recent then the version on the Trust. I hope the rest of the
+          system is too:"</i></p>
+      <pre class="code-snippet"># cat /proc/version
+Linux version 2.6.8.1 (jenny@FD5) (gcc version 3.4.2) #1 Fri Jan 4 10:19:37 CST 2008
+# cat /proc/cpuinfo
+system type             : 96338W
+processor               : 0
+cpu model               : BCM6338 V1.0
+BogoMIPS                : 239.20
+wait instruction        : no
+microsecond timers      : yes
+tlb_entries             : 32
+extra interrupt vector  : yes
+hardware watchpoint     : no
+unaligned access        : 4551171
+VCED exceptions         : not available
+VCEI exceptions         : not available</pre>
+      <p><i>"Wow, a 2.6 Kernel, I could do a lot of nice tricks with
+          this one... But I do not want to risk another router, I need
+          some expendable device to experiment with..."</i> After some
+        seconds an evil grin appeared on his face.</p>
+      <p><b>Router discovery</b></p>
+      <p><i>"I need a router that expose a command-line interface on the
+          internet, and that runs Linux. These things are usually
+          configured via a web interface, I could try a web scan..."</i>
+        Luke remembered a little program that did what he needed. The
+        program was HttSquash, part of the <a
+          href="http://complemento.sourceforge.net">complemento suite</a>,
+        of which had recently been released a GUI.</p>
+      <p>He downloaded and compiled the program. "Good, now I have only
+        to choose a network to scan." He opted for a Vietnam network: it
+        is very unlikely that there are arrangements for the
+        expatriation of foreign criminals. <i>"Ok, range
+          123.*.*.1-255, port 80, timeout of 2 second. Scan started."</i>
+        <br>
+      </p>
+      <div class="image" align="center"><img alt="HttSquash scan
+          results" title="Scan results"
+          src="images/screenshot-httsquash.png" height="740" width="800">
+        <br>
+        Scan results.</div>
+      <p><i>"Wow, this network has it all! Security cameras, routers,
+          printers... And everything remotely accessible via an internet
+          connection, and exposed to every kind of attack. Some Asian
+          countries have not yet learned the lesson..."</i></p>
+      <p><b>NOTE:</b> Indeed some countries are a real boon for people
+        with malicious intent. It's easy to create botnet on these
+        networks because the users are unaware of any security practice.
+        Expecially for devices like routers and printers, not perceived
+        as general purpose platforms. But, in reality, what differences
+        exist between a PC and a router mounting Linux, for the purposes
+        of a network cracker?<br>
+      </p>
+      <p><i>"I'll just try something trivial: let's see if they changed
+          default passwords..."</i> And after four or five devices that
+        didn't oppose the minimal resistance Luke said to himself: <i>
+          "This place is an hacker gold mine! Just uploading a simple
+          backdoor to these I could quickly create my own personal
+          botnet: it's like stealing candy from a baby!"</i> But he
+          wasn't really into these things, he just wanted to play a bit.</p>
+      <p><i>"Netcat should be able to do a port scan on an internal
+          host. It's very old school but let's try it anyway."</i> After
+        uploading netcat to one of the devices of the network, he
+        launched the scan:</p>
+      <pre class="code-snippet">router# ./nc -z -v 192.168.0.5 1-1000
+(UNKNOWN) [192.168.1.5] 135 (loc-srv) open
+(UNKNOWN) [192.168.1.5] 445 (microsoft-ds) open
+(UNKNOWN) [192.168.1.5] 5000 (?) open</pre>
+      <p><i>"Hehe, seems like a Microsoft Windows system. Now I can set
+          up a port forwarding on the router and try to connect to the
+          SMB shares of the host using Samba, but I don't want to alert
+          the administrator. I'll just check what informations this
+          router gives me, when used as a proxy:"</i></p>
+      <pre class="code-snippet"># ./nc -p 4444 -L whatismyipaddress.com:80</pre>
+      <p>Then he directed is browser to port 4444 of the compromised
+        router. This is what he read:</p>
+      <p><strong>General Information</strong></p>
+      <ul>
+        <table border="0">
+          <tbody>
+            <tr>
+              <td>Hostname:</td>
+              <td>123.*.*.4</td>
+            </tr>
+            <tr>
+              <td>ISP:</td>
+              <td>VietNam Post and Telecom Corporation</td>
+            </tr>
+            <tr>
+              <td>Organization:</td>
+              <td>Ho Chi Minh City Post and Telecom Company (HCMPT)</td>
+            </tr>
+            <tr>
+              <td>Proxy:</td>
+              <td>None detected</td>
+            </tr>
+            <tr>
+              <td>Type:</td>
+              <td>Cable/DSL</td>
+            </tr>
+            <tr>
+              <td>Blacklist:</td>
+              <td><br>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </ul>
+      <p><strong>Geo-Location Information</strong></p>
+      <ul>
+        <table border="0">
+          <tbody>
+            <tr>
+              <td>Country:</td>
+              <td>Vietnam <img
+                  src="http://images.whatismyipaddress.com/images/flags/vn.png"
+                  alt=""></td>
+            </tr>
+            <tr>
+              <td>State/Region:</td>
+              <td>20</td>
+            </tr>
+            <tr>
+              <td>City:</td>
+              <td>Ho Chi Minh City</td>
+            </tr>
+            <tr>
+              <td>Latitude:</td>
+              <td>10.75</td>
+            </tr>
+            <tr>
+              <td>Longitude:</td>
+              <td>106.6667</td>
+            </tr>
+            <tr>
+              <td>Area Code:</td>
+              <td>-<br>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </ul>
+      <p><i>"Et voila'! A free proxy without congestion problems! Yes,
+          life is definitely easy for crackers."</i> But it was almost
+        time for dinner, and having had lunch in a hasty fashion his
+        stomach began to complain. <i>"No more games for today. Let's
+          see if I have anything left in the fridge..."</i></p>
+      <p>And after a CTRL-ALT-L he headed for the kitchen.<br>
+      </p>
+    </article>
+  </body>
+</html>

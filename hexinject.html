@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <title>HexInject 1.2 released</title>
+    <link href="css/main.css" rel="stylesheet" type="text/css">
+  </head>
+  
+  <body>
+    <article id="main">
+      <h1>HexInject 1.2 released</h1>
+      <h2>27 May 2011</h2>
+      <br>
+
+      <p>HexInject version 1.2 has been released (<a href="http://hexinject.sourceforge.net/">http://hexinject.sourceforge.net/</a>). Evvai! :)</p>
+
+      <p><a href="http://securityadventures.files.wordpress.com/2011/05/hexinj.png"><img class="aligncenter size-medium wp-image-252" title="hexinject pseudo-logo" src="https://securityadventures.files.wordpress.com/2011/05/hexinj.png?w=300" alt="" width="300" height="206" /></a></p>
+
+      <p>The release includes some minor fixes and a new feature: now the <strong>various length fields</strong> of IP, UDP, TCP, ICMP headers are <strong>automatically adjusted</strong> when the size of the packet is modified.</p>
+
+      <p>Thanks also to the feature that allows the automatic checksum of packet, hexinject has no<strong> longer limitation in altering network's streams of data</strong>... But let's do one step back, since you might not know what I'm talking about :)</p>
+
+      <p>From the site (<a href="http://hexinject.sourceforge.net/">http://hexinject.sourceforge.net/</a>):
+
+	<blockquote>HexInject is a very versatile packet injector and sniffer, that provide a command-line framework for raw network access.
+	  It's designed to work together with others command-line utilities, and for this reason it facilitates the creation of powerful shell scripts capable of reading, intercepting and modifying network traffic in a transparent manner.</blockquote>
+
+	<a href="http://securityadventures.files.wordpress.com/2011/05/bridge.jpg"><img class="aligncenter size-medium wp-image-253" title="haxinject as software bridge" src="http://securityadventures.files.wordpress.com/2011/05/bridge.jpg?w=300" alt="" width="300" height="119" /></a>
+
+      </p>
+
+      <p>
+	Give a look to the site if you want to see some pratical uses of the tool... There's also a <strong>PDF guide</strong> to hexinject that includes a lot of examples and some useful cheatsheets: <a href="http://hexinject.sourceforge.net/hexinject_introduction.pdf">http://hexinject.sourceforge.net/hexinject_introduction.pdf</a>
+      </p>
+	
+      <h4>Something personal</h4>
+
+      <p>
+	I do not know if the same is true for you, but I often need a bit of encouragement to finish my programs and researches.
+      </p>
+      
+      <p>Fortunately, I read some comments at the right time (<a href="http://www.reddit.com/r/netsec/comments/f78fb/regex_man_in_the_middle/.compact?sort=new">http://www.reddit.com/r/netsec/comments/f78fb/regex_man_in_the_middle/.compact?sort=new</a>):
+	
+	<blockquote>"HexInject is a lot of fun! ... Running this next to tcptrack in a couple consoles makes me feel like I know what is going in my network."</blockquote>
+	<blockquote>"This may be one of my favorite new tools! Thanks for the idea!!"</blockquote>
+
+	How can these comments do not warm the heart?  :) After reading these few lines, being a sentimental type, I've decided to release the new features (which would otherwise have remained in limbo for who knows how long)...</p>
+
+      <h4>Something historical</h4>
+
+      <p>HexInject was inspired by the tool <strong>linkcat</strong> of <strong>paketto keiretsu</strong> (<a href="http://freshmeat.net/projects/paketto/">http://freshmeat.net/projects/paketto/</a>).</p>
+  
+      <p>This collection of instruments, issued in late 2002, <strong>contained many innovative ideas</strong>, including that of a low-level access to the network via a tool similar to cat. The objective was precisely to make it easy to use, piped with other cmdline tools.</p>
+  
+      <p>Compared to linkcat, hexinject use more modern libraries and is able to automatically calculate the checksum and the size of packets, making it easier to use. But the basic ideas are the same.</p>
+  
+      <p>For this reason <em>I suggest you to read the slides</em> presented at Defcon 11 by the author of paketto keiretsu (<a href="http://www.defcon.org/images/defcon-11/dc-11-presentations/dc-11-Kaminsky/dc-11-kaminsky.pdf">http://www.defcon.org/images/defcon-11/dc-11-presentations/dc-11-Kaminsky/dc-11-kaminsky.pdf</a>).</p>
+
+      <p>Inspiring slides, imho...</p>
+
+    </article>
+  </body>
+</html>

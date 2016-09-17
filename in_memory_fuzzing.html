@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <title>In-memory-fuzzing in Linux (with GDB and Python)</title>
+    <link href="css/main.css" rel="stylesheet" type="text/css">
+  </head>
+  
+  <body>
+    <article id="main">
+      <h1>In-memory-fuzzing in Linux (with GDB and Python)</h1>
+      <h2>06 Jan 2012</h2>
+      <br>
+
+      <p>Probably, if you're reading this article, you already know what <strong>fuzzing</strong> means. In short, fuzz testing is a technique for <strong>testing software</strong> and <strong>searching vulnerabilities</strong>: targeted software is feeded with malformed input, hoping for something abnormal to occur.</p>
+
+      <p>In recent years many excellent frameworks have been published to help the tester in the development of an effective fuzzer (I like <a href="https://www.immunitysec.com/downloads/advantages_of_block_based_analysis.html">spike</a>, <a href="http://peachfuzzer.com/">peach</a> and <a href="http://code.google.com/p/sulley/">sulley</a> very much).  But, as always, there are some experimental techniques, which in future will allow the evolution of the field: in this case I'm talking about <strong>in-memory fuzzing</strong>.</p>
+
+      <p><strong>In-Memory Fuzzing</strong> is an advanced, and therefore even more complex, technique (but we'll see how to manage this complexity), which allows the tester to <em>fuzz individual subroutines of the targeted program</em>. This focused type of test has many advantages:
+	<ul>
+	  <li>The fuzzing process is <strong>faster</strong> and allows a <em>complete code coverage</em>, since it's possible to select the piece of code to test.</li>
+	  <li>Targeting a specific program subroutine, allows to<em> bypass any obfuscation or decoding of input data</em>, making the <strong>development</strong> of fuzzing tools <strong>simpler</strong>, from this point of view.</li>
+	</ul>
+      </p>
+      
+      <h2>But how does an in-memory fuzzer work?</h2>
+
+      <p>If we consider an application as <em>chain of function</em>, that receives an input, parses and processes it, and produces an output, we can describe in-memory fuzzing as a process that <em>tests only a few specific rings</em> of the chain (those dealing with parsing and processing).</p>
+
+      <p>Having clarified this point, is now easy to illustrate the main techniques used today:</p>
+      
+      <h3>Mutation Loop Insertion</h3>
+      
+      <p><strong>Mutation Loop Insertion</strong> (<em>MLI</em>) modifies the target program inserting an <strong>infinite loop on the parsing subroutine</strong>, isolating it from from the rest of the function chain.</p>
+
+      <p>
+	<a href="images/in-mem-loop.png">
+	  <img class="center" title="in memory loop fuzzing" src="images/in-mem-loop.png" alt="in memory loop fuzzing" />
+	</a>
+      <p>
+
+      <p>This loop can test the targeted function with a large quantity of inputs in a very short time, eliminating superfluous program's code, and requires no interaction from the outside. This makes this method <strong>the fastest</strong>.</p>
+
+      <p>However it has also negative aspects, being the method more <strong>difficult to implement</strong>... It requires at least some knowledge of <em>reverse engineering</em>, and the ability to write <em>code safely injectable</em> inside an active process.</p>
+      
+      <h3>Snapshot Restoration Mutation</h3>
+
+      <p><strong>Snapshot Restoration Mutation</strong> (<em>SRM</em>) handle the program function chain is a different way: no code is injected, but, through the use of <strong>breakpoints</strong>, the fuzzer takes and restores <strong>snapshots of the process</strong> at the beginning and end of the tested function.</p>
+
+      <p>
+	<a href="images/in-mem-snap.png">
+	  <img class="center" title="in memory snapshot fuzzing" src="images/in-mem-snap.png" alt="in memory snapshot fuzzing"/>
+	</a>
+      </p>
+
+      <p>The effect is similar to that of an infinite loop, as in the previous case, but managed and monitored by an external process.</p>
+
+      <p>This method has several <strong>advantages</strong> including the ability to <em>restore the program at a clean state</em>, and, of course, it <em>does not require</em> the writing of <em>assembly code</em>. This at a <strong>cost</strong> of a certain <em>performance degradation</em>.</p>
+      
+      <h2>Implementation</h2>
+      
+      <p>Ok, the practical part, let's start with a question...  Did you know that, since version 7.0, <strong>GDB can be scripted in python</strong>?</p>
+
+      <p>Yeah, I agree, it's a wonderful thing:  although at the time the development is not yet complete, with some adjustments, it is possible to <strong>exploit all the capabilities</strong> of the (u)nix debugger <em>par excellence</em>, within our python scripts.</p>
+
+      <p>Moreover, since version 7.0, GDB is able to <strong>take and restore snapshots</strong> of the debugged process, with the introduction of the <a href="http://sourceware.org/gdb/current/onlinedocs/gdb/Checkpoint_002fRestart.html#Checkpoint_002fRestart">checkpoint</a> command.</p>
+
+      <p>Having found a so <em>confortable "framework"</em> (that, IMHO, has good probabilities to overcome similar solutions present in the Windows environment, also excellent as <a href="http://pedram.redhive.com/PyDbg/docs/">PyDbg</a>), I could not resist the temptation to write an implementation of in-memory fuzzer for (u)nix environments.</p>
+
+      <p>The result was the creation of a <strong><em>small library to support GDB python scripting</em></strong>, with the <em>fuzzer inside the examples directory</em>. Let's look at its practical use...</p>
+      
+      <h3> In-memory fuzzing (in practice)</h3>
+
+      <p>The fuzzer is composed of two scripts: the first, <strong>in-memory-break.py</strong>, is used to find functions to test.</p>
+
+
+      <p>The script inserts<em> breakpoints at the beginning of every function</em> of the program and <strong>prints out their arguments</strong> in search of text strings. The <em>goal is to <strong>find the function that parses</strong></em> the input.</p>
+
+      <p>Let's try to run the script against the vulnerable program contained in the same directory:</p>
+      
+<pre><strong>crossbower@yotsubox$</strong> ./in-memory-break.py getdomain test@email.com
+Breakpoint 1 at 0x4004b0
+Breakpoint 2 at 0x4004d8
+Breakpoint 3 at 0x4004e8
+Breakpoint 4 at 0x4004f8
+Breakpoint 5 at 0x400508
+Breakpoint 6 at 0x400518
+Breakpoint 7 at 0x400528
+Breakpoint 8 at 0x40056c
+Breakpoint 9 at 0x400590
+Breakpoint 10 at 0x400600
+Breakpoint 11 at 0x40062c
+Breakpoint 12 at 0x40064d
+Breakpoint 13 at 0x4007f0
+
+Function &lt;__libc_start_main@plt&gt; at *0x4004f8:
+	argument0 = 4196079 "UH"
+	argument1 = 2
+	argument2 = 140737488348088 "L"
+	argument3 = 4196192 "H"
+	argument4 = 4196176
+	argument5 = 140737351962048 "UH"
+
+Function &lt;_init&gt; at *0x4004b0:
+	argument0 = 2
+	argument1 = 140737488348088 "L"
+	argument2 = 140737488348112
+	argument3 = 0
+	argument4 = 140737351885568
+	argument5 = 140737351962048 "UH"
+
+Function &lt;call_gmon_start&gt; at *0x40056c:
+	argument0 = 2
+	argument1 = 140737488348088 "L"
+	argument2 = 140737488348112
+	argument3 = 0
+	argument4 = 140737351885568
+	argument5 = 140737351962048 "UH"
+
+Function &lt;frame_dummy&gt; at *0x400600:
+	argument0 = 2
+	argument1 = 140737488348088 "L"
+	argument2 = 140737488348112
+	argument3 = 0
+	argument4 = 140737351885568
+	argument5 = 140737351962048 "UH"
+
+Function &lt;__do_global_ctors_aux&gt; at *0x4007f0:
+	argument0 = 2
+	argument1 = 140737488348088 "L"
+	argument2 = 140737488348112
+	argument3 = 0
+	argument4 = 140737351885568
+	argument5 = 140737351962048 "UH"
+
+Function &lt;strdup@plt&gt; at *0x400508:
+	argument0 = 140737488348816 "test@email.com"
+	argument1 = 140737488348088 "L"
+	argument2 = 140737488348112
+	argument3 = 0
+	argument4 = 140737351885568
+	argument5 = 140737351962048 "UH"
+
+<strong>Function &lt;parse&gt; at *0x40064d:
+	argument0 = 6295568 "test@email.com"
+	argument1 = 140737488348831 "SSH_AGENT_PID=2952"
+	argument2 = 0
+	argument3 = 30803244232763745
+	argument4 = 140737351888448
+	argument5 = 140737348377640</strong>
+
+Function &lt;strtok@plt&gt; at *0x400528:
+	argument0 = 6295568 "test@email.com"
+	argument1 = 4196426 "@"
+	argument2 = 0
+	argument3 = 30803244232763745
+	argument4 = 140737351888448
+	argument5 = 140737348377640
+
+Function &lt;strtok@plt&gt; at *0x400528:
+	argument0 = 0
+	argument1 = 4196426 "@"
+	argument2 = 6295573 "email.com"
+	argument3 = 6295573 "email.com"
+	argument4 = 6295568 "test"
+	argument5 = 140737348377640
+
+Function &lt;strcpy@plt&gt; at *0x400518:
+	argument0 = 140737488346768
+	argument1 = 6295573 "email.com"
+	argument2 = 6295582
+	argument3 = 6295583
+	argument4 = 0
+	argument5 = 140737348377640
+
+Function &lt;print_domain&gt; at *0x40062c:
+	argument0 = 140737488346768 "email.com"
+	argument1 = 6295584
+	argument2 = 140737488346777
+	argument3 = 0
+	argument4 = -72340172838076673
+	argument5 = -72219847665292440
+
+Function &lt;printf@plt&gt; at *0x4004d8:
+	argument0 = 4196412 "Domain is %s\n"
+	argument1 = 140737488346768 "email.com"
+	argument2 = 140737488346777
+	argument3 = 0
+	argument4 = -72340172838076673
+	argument5 = -72219847665292440
+
+Domain is email.com
+Function &lt;printf@plt&gt; at *0x4004d8:
+	argument0 = 4196463 "Domain is valid? %s\n"
+	argument1 = 4196428 "YES"
+	argument2 = 140737351888368
+	argument3 = 4196425
+	argument4 = 1
+	argument5 = 4196425
+
+Domain is valid? YES
+Function &lt;__do_global_dtors_aux&gt; at *0x400590:
+	argument0 = 140737488347632 "("
+	argument1 = 140737488347632 "("
+	argument2 = 140737354127792
+	argument3 = 4
+	argument4 = 0
+	argument5 = 4
+
+[Inferior 1 (process 18083) exited normally]</pre>
+
+      <p>I've highlighted the parsing function. This case was <strong>simple</strong>, because <em>the <strong>binary was not stripped</strong></em>, making possible to print function names. But even in the case of stripped binaries, it's possible to find the function we are interested in, <em>analyzing and trying to <strong>decode the arguments</strong></em>.</p>
+
+      <p>The vulnerable program simply try to extract the domain from an email address: an <em>overly long domain triggers a buffer overflow</em> on the stack.</p>
+
+      <p>Now that we know the function to test and the input type, let's try to see if our in-memory fuzzer is able to detect the bug:</p>
+      
+      <pre><strong>cross@yotsubox$</strong> ./in-memory-fuzz.py parse getdomain test@email.com
+Breakpoint 1 at 0x400651
+
+Breakpoint 1, 0x0000000000400651 in parse ()
+fuzz loop: 1
+string len: 15
+0x601030:	 "test@email.com"
+Domain is email.com
+0x000000000040072f in main ()
+Switching to process 4997
+#0  0x0000000000400651 in parse ()
+fuzz loop: 2
+string len: 16
+0x601030:	 "test@email.comA"
+Domain is email.comA
+0x000000000040072f in main ()
+Switching to process 4998
+#0  0x0000000000400651 in parse ()
+fuzz loop: 3
+string len: 17
+0x601030:	 "test@email.comAA"
+Domain is email.comAA
+0x000000000040072f in main ()
+Switching to process 4999
+...
+...
+...
+#0  0x0000000000400651 in parse ()
+fuzz loop: 1031
+string len: 1045
+0x601030:	 "test@email.com", 'A' &lt;repeats 186 times&gt;...
+Domain is email.comAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+0x000000000040072f in main ()
+Switching to process 7202
+<strong>#0 0x0000000000400651 in parse ()</strong>
+<strong>fuzz loop: 1032</strong>
+<strong>string len: 1046</strong>
+0x601030:	 "test@email.com", 'A' &lt;repeats 186 times&gt;...
+Domain is email.comAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+Domain is valid? YES
+
+<em><strong>Program received signal SIGSEGV, Segmentation fault.</strong></em>
+0x0000000000400849 in ?? ()
+Switching to process 7203
+#0  0x0000000000400651 in parse ()
+fuzz loop: 1033
+string len: 1047
+0x601030:	 "test@email.com", 'A' &lt;repeats 186 times&gt;...
+[Switching to process 7204]
+
+Program terminated with signal SIGSEGV, Segmentation fault.
+The program no longer exists.
+
+#
+# The program has crashed! Stack exhaustion or bug???
+# Now is your turn, have fun! :P
+#
+
+A debugging session is active.
+
+	Inferior 1 [process 7204] will be killed.
+
+Quit anyway? (y or n) y</pre>
+
+      <p>As you can see, <strong><em>fuzzing loop number 1032 triggered the bug</em></strong>: the input strings are simply generated appending 'A' characters to a valid email address, and when the domain part reaches a critical length, a buffer on the stack is overflowed, overwriting the return address (and stack canaries).</p>
+
+      <p>Although this is script is very simple, <strong>it's a basis to build on</strong> to create more complex fuzzer. In addition it illustrates several GDB features very useful in this field:</p>
+
+      <ul>
+	<li><strong>Allocation of memory</strong> on the target process</li>
+	<li><strong>Snapshots/checkpoints</strong> and their <strong>restoration</strong></li>
+	<li><strong>Breakpoint</strong> management</li>
+	<li><strong>Argument analysis</strong></li>
+      </ul>
+
+      <p>If you are interested in GDB python scripting or in-memory fuzzing on (u)nix system, you can visit the project website:</p>
+
+      <p><strong>GDB Python Utils</strong>:  <a href="https://github.com/crossbowerbt/GDB-Python-Utils/">https://github.com/crossbowerbt/GDB-Python-Utils/</a></p>
+      
+      <p>You will find the scripts illustrated in this article under the <em>examples</em> directory of the project.</p>
+
+      <p>I'm also trying to maintain a good documentation for the support library, so you may give a look at the <em>"snippet" page of the wiki</em> (<a href="https://github.com/crossbowerbt/GDB-Python-Utils/wiki/Snippets/">https://github.com/crossbowerbt/GDB-Python-Utils/wiki/Snippets/</a>) to see the implemented features.</p>
+
+      <h2>Post scripta</h2>
+
+      <p>Some additions to the original article, born after discussing some issues with visitors in the comment section of the previous site.</p>
+
+      <h3>Hints for 32bit systems</h3>
+
+      <p>The fuzzer was specifically developed for <strong>64bit systems</strong>: if you want to use it against 32bit application you must adapt it (if you send me an email I can give you a few hints...)</p>
+
+      <p>On <strong>32-bit systems</strong> the <strong>arguments are passed on the stack</strong>: you can find them adding their offset to the %esp register.</p>
+
+      <p>Example, a 32bit process read() call:</p>
+
+<pre>(gdb) x/4x $sp
+0xffffc09c:	0xf6bb17da	0x0000000b	0x09286d90	0x00002000</pre>
+
+      <p>The first dword encountered is the return address, we are not interested in it...</p>
+
+      <p>The first argument (the file descriptor):</p>
+
+<pre>(gdb) x/x $sp+4
+0xffffc0a0:	0x0000000b</pre>
+
+      <p>The second argument (the buffer):</p>
+
+<pre>(gdb) x/x $sp+8
+0xffffc0a4:	0x09286d90</pre>
+
+      <p>The third argument (max read length):</p>
+
+<pre>(gdb) x/x $sp+12
+0xffffc0a8:	0x00002000</pre>
+
+      <p>To make the fuzzer work on 32-bit system you must <strong>change the code that read/modify the arguments</strong> of functions (I will probably change the fuzzer to make it multi-architecture, when I have time).</p>
+
+      <h3>In the meanwhile the interface has changed...</h3>
+
+      <p>Python integration in GDB has improved. Here is an interesting video that shows what is possible to do now:</p>
+
+      <iframe class="center" width="854" height="480" src="https://www.youtube.com/embed/713ay4bZUrw" frameborder="0" allowfullscreen></iframe>
+
+    </article>
+  </body>
+</html>

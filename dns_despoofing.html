@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <title>DNS Despoofing</title>
+    <link href="css/main.css" rel="stylesheet" type="text/css">
+  </head>
+  
+  <body>
+    <article id="main">
+      <h1>DNS Despoofing</h1>
+      <h2>06 Aug 2010</h2>
+      <br>
+      <p>These days I was playing with some well-known tools to perform
+        DNS spoofing in both *nix and windows environment: Dnsspoof
+        (part of the <a href="http://monkey.org/%7Edugsong/dsniff/">dsniff suite</a>) and
+	<a href="http://www.securiteam.com/tools/6X0041P5QW.html">WinDNSSpoof</a>,
+        of which I learned only recently.</p>
+      <p>I was analyzing the generation of DNS replies when I discovered
+        something interesting. Can you spot where the problem is?</p>
+      <p>The DNS request:<br>
+      </p>
+      <div class="image" align="center"><img alt="Forged DNS request"
+          title="Forged DNS request" src="images/forged_dns_request.png"
+          height="402" width="800"> <br>
+      </div>
+      <p>The DNS response:<br>
+      </p>
+      <div class="image" align="center"><img alt="Forged DNS response"
+          title="Forged DNS response"
+          src="images/forged_dns_response.png" height="402" width="800">
+        <br>
+      </div>
+      <p>Is not difficult to see that, if a request is artificially
+        forged to include arbitrary trailing bytes at the end, these
+        bytes are replicated in the replies of simple DNS spoofers.</p>
+      <p>These tools, since the response must contain a copy of the
+        hostname queried, simply copy that part of the request using
+        memcpy(), without fully parsing the header.</p>
+      <p>Thanks to this little oversight, it's easy to find out if we are
+        victims of a DNS attack that use one of these stateless tools.
+        This may not be indispensable, for example, if the attacker is
+        also conducting a MITM attack based on the ARP protocol: we just
+        need to monitor the incoming ARP packets to detect anomalies.</p>
+      <p>This trick comes in handy when the attacker is located on the
+        router, or on an intermediate host of our network. In this case
+        he is already "in the middle", and just need to monitor the
+        traffic that traverse his machine to capture DNS requests. We
+        may thus detect him, only if we are able to differentiate its
+        behaviour from the behaviour of a valid DNS server.<br>
+      </p>
+      <p>I wrote a script, quite easy to use, to test if a naive DNS
+        spoofer is intercepting your requests. It’s based on the <a
+          href="http://www.hping.org/">hping3</a> TCL shell, which
+        provides a little framework for packet forging.</p>
+      <p><b>NOTE:</b> I also considered <a href="http://www.secdev.org/projects/scapy/">scapy</a>,
+	but hping requires fewer dependencies and is more portable, and I
+        always prefer not to add extra burdens to users or distributions
+        maintainers. Being a maintainer can be a very frustrating
+        experience when you have to fight against badly organized
+        software. Remember to offer them a beer if you meet the
+        maintainers of the distribution you use at a convention...<br>
+      </p>
+      <p> Let’s now see how to use the tool:</p>
+      <pre class="code-snippet">root@backtrack-base# hping3 exec dns_despoof.tcl<br>DNS Despoofer - crossbower - 2010<br> Usage: hping3 exec dns_despoof.tcl &lt;server&gt; &lt;interface&gt; (&lt;action:search|crash&gt;)<br><br>root@backtrack-base# hping3 exec dns_despoof.tcl 192.168.56.101 vboxnet0 search<br>SPOOFER DETECTED!<br></pre>
+      <p>We just launched dns_despoof in <i>search</i> mode.</p>
+      <p>The IP address 192.168.56.101 is the IP of the DNS server you
+        normally use (e.g. 8.8.8.8/8.8.4.4 for google's nameservers).
+        You must also provide the interface where to inject the packet.
+        I was running dnsspoof on a virtual machine so I specified the
+        interface vboxnet0.</p>
+      <p>After running, the script correctly detected a spoofer.<br>
+      </p>
+      <p>There is also another mode available: <i>crash</i>. This mode
+        injects a malformed packet on the network, in which the hostname
+        requested is not terminated by a null character.<br>
+      </p>
+      <p>The tools that fail to properly parse the request will exhibit
+        a nice segfault, as the case of WinDNSSpoof.</p>
+      <p>Dnsspoof, instead, uses the function dh_expand, contained in
+        resolv.h, which is able to detect this type of error. A little
+        snippet of dnsspoof:<br>
+      </p>
+      <pre class="code-snippet">if ((i = dn_expand((u_char *)dns, end, p, name, sizeof(name))) &lt; 0)
+ return;</pre>
+      <p>The output of the tool when started in <i>crash</i> mode is
+        the following:<br>
+      </p>
+      <pre class="code-snippet">root@backtrack-base# hping3 exec dns_despoof.tcl 192.168.56.101 vboxnet0 crash<br>Bullet fired... Try again to search for spoofers:<br> 1) No responses: the spoofer has probably crashed (windnsspoof).<br> 2) Responses: it's a well written spoofer (dnsspoof).<br></pre>
+      <p>A subsequent test in <i>search</i> mode will allow you to
+        determine whether the tool crashed or not. This may also be used
+        as a sort of fingerprint.</p>
+      <p>Here’s the source code of the tool. It’s only able to make a
+        request with the name “google.com”, but can be easily adapted:</p>
+      <pre class="code-snippet">
+#
+# DNS Despoofer
+# crossbower - 2010
+#
+# Usage:
+# hping3 exec dns_despoof.tcl &lt;server&gt; &lt;interface&gt; (&lt;action:search|crash&gt;)
+#
+
+#
+# Search spoofers
+#
+proc search_spoofers { server interface } {
+
+    # prepare and send DNS probe
+    set probe {ip(daddr=192.168.0.1,ttl=64)+udp(dport=53,sport=44556)+data(str=\2f\69\01\00\00\01\00\00\00\00\00\00\06\67\6f\6f\67\6c\65\03\63\6f\6d\00\00\01\00\01\70\69\7a\7a\61)};
+
+    set probe [hping setfield ip daddr $server $probe];
+
+    # send probe
+    hping send $probe;
+
+    # sniff loop
+    while { 1 } {
+
+        # sniff a single packet
+        set p [lindex [hping recv $interface] 0];
+
+        # is it the DNS response?
+        if { [hping getfield ip proto $p]  != 17      ||
+             [hping getfield ip saddr $p]  != $server ||
+             [hping getfield udp sport $p] != 53      ||
+             [hping getfield udp dport $p] != 44556 } {
+                continue
+        }
+
+        # get data
+        set res_data [hping getfield data str $p];
+        set result [string match "*pizza*" $res_data];
+
+        if { $result == 0 } {
+            puts "No spoofer detected...";
+        } else {
+            puts "SPOOFER DETECTED!";
+        }
+
+        break;
+    }
+}
+
+#
+# Crash spoofers
+#
+proc crash_spoofers { server interface } {
+
+    # prepare and send DNS probe
+    set probe {ip(daddr=192.168.0.1,ttl=64)+udp(dport=53,sport=44556)+data(str=\2f\69\01\00\00\01\00\00\00\00\00\00\06\67\6f\6f\67\6c\65\03\63\6f\6d\01\00\01\00\01\70\69\7a\7a\61)};
+
+    set probe [hping setfield ip daddr $server $probe];
+
+    # send probe
+    hping send $probe;
+
+    puts "Bullet fired... Try again to search for spoofers:\n1) No responses: the spoofer is probably crashed (windnsspoof).\n2) Responses: it's a well written spoofer (dnsspoof).";
+}
+
+#
+# Usage
+#
+proc usage {} {
+    puts "DNS Despoofer - crossbower - 2010\nUsage:\n  hping3 exec dns_despoof.tcl &lt;server&gt; &lt;interface&gt; (&lt;action:search|crash&gt;)";
+    exit 250;
+}
+
+#
+# Main
+#
+
+# get dns server
+set server [lindex $argv 0];
+set interface [lindex $argv 1];
+set action [lindex $argv 2];
+
+# check args
+if { $server == "" || $interface == "" } { usage }
+
+# simple trick to initialize libpcap
+set p [lindex [hping recv $interface 1] 0];
+
+# check action
+if { $action == "" || $action == "search" } {
+    search_spoofers $server $interface;
+} elseif { $action == "crash" } {
+    crash_spoofers $server $interface;
+} else {
+    usage;
+}
+
+exit 0;
+      </pre>
+      <p>The same code on pastebin: <a
+          href="http://pastebin.com/78y4snFk">http://pastebin.com/78y4snFk</a>.<br>
+      </p>
+    </article>
+  </body>
+</html>
