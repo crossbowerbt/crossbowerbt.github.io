@@ -16,7 +16,7 @@
       <p>
 	<strong>NOTE:</strong> This post is the first in a series
 	about the practical development of crypto systems. If you like
-	the article check back later to see if updates have been
+	it check back later to see if updates have been
 	published.
       </p>
       
@@ -33,15 +33,13 @@
       </p>
 
       <p>
-	The objective is to simplify some of our assumptions, as developers, about what an encryption program should and should not do,
+	The objective is to simplify some of our assumptions as developers, about what an encryption program should and should not do,
 	thus helping to create software that really adapts to the necessities of its users.
       </p>
 
       <br>
 
       <h2>Philosophical Principles</h2>
-
-      <p>The principles are the most general basis on which this manifesto is built.</p>
 
       <p>
 	<strong>Principle I: Security.</strong> The main objective of a cryptography system is to protect its users from a wide range of attacks.
@@ -51,14 +49,14 @@
 
       <p>
 	<strong>Principle II: Flexibility.</strong> Knowing the future doesn't not belong to us: we can not predict how our software
-	will be used today, much less so in the future. Flexibility often requires doing less, to allow the user to fill in what he really needs,
-	not what we think he needs. In spite it being a simplification for us, we always want to overdo things.
+	will be used today, much less so in the future. Flexibility often requires doing less, to allow the user to fill in what he really needs.
+	In spite of this being a simplification for developers, developers always want to overdo things.
       </p>
 
       <p>
 	<strong>Principle III: Esoterism.</strong> Users are different: novices need good default settings, advanced users
 	need systems that can be tailored to perfectly fit their work habits. Cryptography software should be like
-	some books that reveal different meanings to readers having different degrees of knowledge
+	a book that reveal different meanings to readers having different degrees of knowledge
 	<sup class="footnote"><span id="fn1r"></span><a href="#fn1">1</a></sup>.
       </p>
 
@@ -69,7 +67,7 @@
 
       <p>
 	<strong>PrRule 1: Portability.</strong> Information is hidden to be exchanged is a secure way, or to be stored for a long time
-	(also in a secure way).
+	(in a secure way).
       </p>
 
       <p>
@@ -84,26 +82,26 @@
       </p>
 
       <p>
-	<strong>PrRule 2: Simplicity of Understanding.</strong> The only true documentation of a crypto system is its code.
+	<strong>PrRule 2: Simplicity of Understanding.</strong> The only true documentation of a cryptography system is its code.
 	No document can replace code: code is where parameters are chosen, code is where algorithms are implemented
-	(documentation can merely tell algorithms' <em>name</em>), code is where backdoors are hidden by hidden parties.
+	(documentation can merely tell an algorithm's <em>name</em>), code is where backdoors are hidden by hidden parties.
       </p>
 
       <p>
-	Every user, novice or expert, should be able to read the code and map its internals against a public
-	implementation of the algorithm used. If this seems unlikely: people live and die depending
+	Every user, novice or expert, should be able to read the code and map it against a public
+	implementation of the algorithms used. If this seems unlikely consider this: people live and die depending
 	on how well they understand their operations. Developers do not risk their lives, users do: facing death
 	they will gain the understanding they need to modify the system.
       </p>
 
       <p>
 	<strong>PrRule 3: State of the Art.</strong> New algorithms and attacks are published every day, and often
-	there is no time to wait for a patch that may or may not arrive. A software unable to adapt
-	die soon - sometime even its users.
+	there is no time to wait for a patch that may not arrive. A software unable to adapt
+	die soon - sometime with its users.
       </p>
 	
       <p>
-	<strong>PrRule 4: Lightness.</strong> Cryptography does not need long and complicated code, an elegant kernel is better.
+	<strong>PrRule 4: Lightness.</strong> Cryptography software does not need a long and complicated code, an elegant kernel is better.
 	Cryptography does not need hundred of library dependencies, just the essentials since each link can break the chain.
       </p>
 
@@ -118,7 +116,7 @@
 
       <p>
 	<strong>ThRule 1: no PRNG.</strong> Why should we condemn ourselves to endless pain tying our software with a PRNG?
-	Some systems have not entropy, so entropy must be imported from outside. Some system have a weaknened PRNG,
+	Some systems have no access to entropy sources, if they need entropy it must be imported from outside. Some system have a weaknened PRNG,
 	a cryptographic backdoor very difficult to detect.
       </p>
 
@@ -129,12 +127,12 @@
 
       <p>
 	<strong>ThRule 2: no Authentication.</strong> Why should an encryption system check if the provided passphrase is correct?
-	It is responsibility of the user to provide the correct passphrase. Why should we make brute forcing easier for an attacker?
+	It is user's responsibility to provide the correct passphrase. Why should we make brute forcing easier for an attacker?
       </p>
 
       <p>
 	The only way to tell a correct passphrase from a wrong one should be the following: with a correct passphrase the user reads
-	the original message, with an incorrect passphrase he reads garbage.
+	back the original message, with an incorrect passphrase he gets only garbage.
       </p>
 
       <p>
@@ -144,8 +142,8 @@
       </p>
 
       <p>
-	<strong>ThRule 3: no Filesystem.</strong> It is the operating system that provide filesystem facilities, not a crypto system.
-	If needed, the filesystem should be completely arbitrary and transparent: we don't its uses.
+	<strong>ThRule 3: no Filesystem.</strong> It is the operating system that should provide filesystem facilities, not a crypto system.
+	If a filesystem is needed, the user should be able to choose whatever filesystem he wants: we can not predict its uses.
       </p>
 
       <p>
@@ -160,7 +158,7 @@
       </p>
 
       <p>
-	Any kind of data copy leads failure.
+	Any kind of data copy leads to failure.
       </p>
 
       <hr width="100%" size="2">
