@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <title>Portable AES-CTR Encryption using Fuse</title>
+    <link href="css/main.css" rel="stylesheet" type="text/css">
+  </head>
+  
+  <body>
+    <article id="main">
+      <h1>Portable AES-CTR Encryption using Fuse</h1>
+      <h2>22 Sep 2016</h2>
+      <img class="center" src="images/lock2.png" alt="lock"></img>
+
+      <p>
+	<strong>NOTE:</strong> This post is the second in a series
+	about the practical development of crypto systems. If you like
+	it, check back later to see if updates have been published.
+      </p>
+
+      <p>
+	This post follows the philosophy of the <a href="encryption_manifesto.html">encryption manifesto</a> published previously.
+      </p>
+      
+      <hr width="100%" size="2">
+
+      <br>
+
+      <h2>Introduction</h2>
+      
+      <p>
+	This article illustrate the development of a simple encryption system
+	that uses AES256 in CTR mode and Fuse to provide a transparent interface
+	to encrypted data.
+      </p>
+
+      <p>
+	The choice of libraries and algorithms has been made according to the
+	rules expressed by the <a href="encryption_manifesto.html">encryption
+	  manifesto</a>.
+	This project is a first showcase that illustrate how the rules
+	of the manifesto can apply to real software. So, it is a natural
+	extension of it.
+      </p>
+
+      <p>If you want to skip the rationale you can go directly to the section describing the <a href="#implementation">implementation</a>.</p>
+
+      <h2>Rationale</h2>
+      
+      <p>
+	Particular care has been has been taken in assuring that the program is portable, but also simple to understand and compile. In fact the program is code entirely in a single file, that produces a single executable.
+      </p>
+
+      <p>
+	The program takes a single encrypted file, and provides, using fuse,
+	a virtual filesystem containing a single plaintext file. This file
+	can be used directly to store data, or a filesystem can be created on
+	it using standard OS facilities
+	<sup class="footnote"><span id="fn1r"></span><a href="#fn1">1</a></sup>.
+      </p>
+
+      <p>
+	Fuse has been chosen since it provides transparent access to plaintext.
+	Consider the following scenario: encrypting a PDF file using AES.
+	PDF viewers require random read access to all sections of the
+	displayed document. Encrypting the document using, for example,
+	a compression tool supporting AES, or even using openssl,
+	requires to decompress the file to an unencrypted support
+	before a viewer can open the it. This procedure is not optimal:
+	it is true that is possible to decompress the file in a RAM only
+	filesystem, but this requires explicit user intervention, and is
+	error-prone. Using a virtual filesystem it is possible to avoid
+	this problem.
+      </p>
+
+      <p>
+	Another advantage of fuse is its wide adoption on every major
+	operating system. Linux supports fuse, and also all modern BSD systems
+	supports it (including Mac OS). Even on Windows there are compatible
+	libraries
+	<sup class="footnote"><span id="fn2r"></span><a href="#fn2">2</a></sup>.
+	The program uses only standard functions and libraries, to keep
+	portability issues to the minimum.
+      </p>
+
+      <p>
+	Cryptographic primitives are provided by openssl/libressl, available
+	on any major operating system. Functions imported are only the
+	strictly necessary, and should be easy to replace them with equivalent
+	ones.
+      </p>
+
+      <br>
+
+      <span id="implementation"></span>
+
+      <h2>Implementation</h2>
+
+      <p>
+	First we delineate a skeleton structure for the program, and then
+	fill in the details in successive sections.
+      </p>
+
+      <h3>Fuse Basic Callbacks Functions</h3>
+
+      <p>
+	To maintain the program easy to understand, we implement only
+	the minimal set of functions required for the program to work:
+      </p>
+
+      <p>
+	<strong class="mono">Open()</strong> and <strong class="mono">close()</strong> are needed when.
+      </p>
+
+      <p>
+	<strong class="mono">Read()</strong> and <strong class="mono">write()</strong> are the core
+	of the program. These two functions provide a transparent way to
+	access the encrypted data. We will use <strong class="mono">read()</strong> to
+	decipher a block of ciphertext and return it to the user, and
+	<strong class="mono">write()</strong> to re-encrypt user plaintext and store
+	it back in the file.
+      </p>
+
+      <p>
+	<strong class="mono">Stat()</strong> is used by <span class="mono">ls</span> to list the
+	files contained in our virtual filesystem, and to get some information
+	on them, like file size, preferred read block size, and access
+	permissions.
+      </p>
+
+      <p>
+	These are the only functions needed by fuse to create an encrypted
+	virtual filesystem. We will now see what cryptographic functions
+	are needed.
+      </p>
+
+      <br>
+
+      <h3>Cryptographic functions</h3>
+
+      <p>
+	To unlock an encrypted file, we first need to get the decryption key
+	from the user. Assuming we ask the user a passphrase, we need a way to
+	convert this passphrase into a key that is directly usable with the
+	AES256 algorithm.
+      </p>
+
+      <p>
+	There are several standard ways to generate a key from a passphrase
+	(notably PBKDF2 or, more recently, scrypt). For this first program
+	however we will simply take a salted hash of the passphrase, using
+	SHA256, that provides an output of the correct size for AES256.
+      </p>
+
+      <p>
+	To encrypt and decrypt data we will use AES256 in CTR mode.
+	This mode is easy to implement and is secure if good values
+	for the nonce are selected.
+      </p>
+
+      <p>
+	From openssl we will only import the basic AES256 block function
+	(AES256 in ECB mode), and SHA256. We will implement the other
+	cryptographic functions we need in the code.
+      </p>
+
+      <br>
+
+      <h3>Input file and entropy source</h3>
+
+      <p>
+	In the previous section we never mentioned cryptographic functions
+	related to pseudo-random number generation. In fact we externalize
+	completely the PRNG.
+      </p>
+
+      <p>
+	Since the program expect an encrypted input file to mount,
+	even on its first use, we can just provide it a file of the
+	correct size generated, for example, using <span class="mono">/dev/urandom</span>:
+      </p>
+
+      <pre>dd if=/dev/urandom of=encrypted_file bs=16 count=1025</pre>
+
+      <p>
+	Note that we used a block size of 16 bytes since AES operates on
+	blocks of 128 bits. If we use the last of these blocks to contain
+	the nonce (plus eventually other header's fields), we obtain a file
+	containing 16Kb of encrypted data plus 16 bytes of header.
+      </p>
+
+      <p>
+	In addition this file can be generated on systems that have access
+	to good sources of entropy, and then copied on systems which have not
+	(e.g. embedded systems).
+      </p>
+
+      <p>
+	But the main advantage is that the program is not tied to a single
+	PRNG implementation, and so is more portable and avoids many
+	tricky problems that arise from a bad use of entropy.
+      </p>
+
+      
+       
+      <hr width="100%" size="2">
+
+
+      <p>
+	<span id="fn1"></span>
+	<small class="footnote"><strong>Footnote 1.</strong> The program
+	  illustrated here uses AES in CTR mode.
+	  This mode can not safely used for filesystem encryption, see:
+	  <a href="http://sockpuppet.org/blog/2014/04/30/you-dont-want-xts/">You don't want XTS</a>.
+	  The next article will describe how to implement a similar program
+	  to encrypt partitions, using XTS mode. Please use the program
+	  developed here only to store static files.
+	  Return to <a href="#fn1r">article</a>.</small>
+      </p>
+      
+      <p>
+	<span id="fn2"></span>
+	<small class="footnote"><strong>Footnote 2.</strong> There are fuse compatible libraries even for windows. Give a look at: <a href="https://github.com/dokan-dev/dokany">https://github.com/dokan-dev/dokany</a>. Return to <a href="#fn2r">article</a>.</small>
+      </p>
+
+    </article>
+  </body>
+</html>
