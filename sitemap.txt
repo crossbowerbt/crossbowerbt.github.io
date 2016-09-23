@@ -1,0 +1,12 @@
+https://crossbowerbt.github.io/bio.html
+https://crossbowerbt.github.io/contacts.html
+https://crossbowerbt.github.io/cymothoa_intro.html
+https://crossbowerbt.github.io/dns_despoofing.html
+https://crossbowerbt.github.io/encryption_manifesto.html
+https://crossbowerbt.github.io/hexinject.html
+https://crossbowerbt.github.io/hexinject_usb.html
+https://crossbowerbt.github.io/in_memory_fuzzing.html
+https://crossbowerbt.github.io/index.html
+https://crossbowerbt.github.io/invisible_woman_axis_camera.html
+https://crossbowerbt.github.io/letdown.html
+https://crossbowerbt.github.io/router_odissey.html
