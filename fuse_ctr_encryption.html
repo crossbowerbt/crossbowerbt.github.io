@@ -20,7 +20,9 @@
       </p>
 
       <p>
-	This post follows the philosophy of the <a href="encryption_manifesto.html">encryption manifesto</a> published previously.
+	This post follows the philosophy of the
+	<a href="encryption_manifesto.html">encryption manifesto</a>
+	published previously.
       </p>
       
       <hr width="100%" size="2">
@@ -30,15 +32,15 @@
       <h2>Introduction</h2>
       
       <p>
-	This article illustrate the development of a simple encryption system
-	that uses AES256 in CTR mode and Fuse to provide a transparent interface
-	to encrypted data.
+	This article illustrate the development of a simple encryption
+	system using AES256 in CTR mode and Fuse to provide a
+	transparent interface to encrypted data.
       </p>
 
       <p>
-	The choice of libraries and algorithms has been made according to the
-	rules expressed by the <a href="encryption_manifesto.html">encryption
-	  manifesto</a>.
+	The choice of libraries and algorithms has been made according
+	to the rules expressed by the
+	<a href="encryption_manifesto.html">encryption manifesto</a>.
 	This project is a first showcase that illustrate how the rules
 	of the manifesto can apply to real software. So, it is a natural
 	extension of it.
@@ -123,7 +125,7 @@
       </p>
 
       <p>
-	<strong class="mono">Stat()</strong> is used by <span class="mono">ls</span> to list the
+	<strong class="mono">Getattr()</strong> and <strong class="mono">readdir</strong> are used by <span class="mono">ls</span> to list the
 	files contained in our virtual filesystem, and to get some information
 	on them, like file size, preferred read block size, and access
 	permissions.
@@ -134,8 +136,6 @@
 	virtual filesystem. We will now see what cryptographic functions
 	are needed.
       </p>
-
-      <br>
 
       <h3>Cryptographic functions</h3>
 
@@ -164,8 +164,6 @@
 	(AES256 in ECB mode), and SHA256. We will implement the other
 	cryptographic functions we need in the code.
       </p>
-
-      <br>
 
       <h3>Input file and entropy source</h3>
 
@@ -202,10 +200,470 @@
 	tricky problems that arise from a bad use of entropy.
       </p>
 
-      
-       
-      <hr width="100%" size="2">
+      <br>
 
+      <span id="implementation"></span>
+
+      <h2>Implementation</h2>
+
+      <p>
+	Here we describe the key parts of the code.
+      </p>
+      
+      <h3>FUSE callbacks</h3>
+
+      <p>
+	As we already said, we implement only the strictly necessary
+	callbacks to make the filesystem usable.
+      </p>
+
+      <p>
+	Since we provide a single file in our virtual filesystem
+	to access paintext data, the <strong class="mono">readdir()</strong>
+	callback is very simple:
+      </p>
+
+      <pre>
+#define PLAIN_FILENAME "plain"
+
+static int
+readdir_callback(const char *path, void *buf, fuse_fill_dir_t filler,
+		 off_t offset, struct fuse_file_info *fi) {
+    (void) offset;
+    (void) fi;
+
+    filler(buf, ".", NULL, 0);
+    filler(buf, "..", NULL, 0);
+
+    filler(buf, PLAIN_FILENAME, NULL, 0);
+
+    return 0;
+}
+      </pre>
+
+      <p>
+	The name of the plaintext file is fixed to "plain" in the code.
+	The links to the current directory "." and upper directory ".." are
+	also provided.
+      </p>
+
+      <p>
+	Since tools like <strong class="mono">ls</strong> uses functions
+	like <strong class="mono">stat()</strong> to display informations
+	on files, we also need to implement the
+	<strong class="mono">getattr()</strong> callback:
+      </p>
+
+      <pre>
+static int
+getattr_callback(const char *path, struct stat *stbuf) {
+    memset(stbuf, 0, sizeof(struct stat));
+
+    if (strcmp(path, "/") == 0) {
+   	stbuf->st_mode = S_IFDIR | 0755;
+    	stbuf->st_nlink = 2;
+    	return 0;
+    }
+
+    if (strcmp(path, "/" PLAIN_FILENAME) == 0) {
+	stbuf->st_mode = S_IFREG | 0777;
+    	stbuf->st_nlink = 1;
+	stbuf->st_size = encrypted_stat.st_size - sizeof(nonce);
+    	return 0;
+    }
+
+    return -ENOENT;
+}
+      </pre>
+
+      <p>
+	As you can see we provide stats only for the root directory of the
+	filesystem and for the plaintext file. We leave almost all fields
+	unchanged, but set the plaintext file size equals to the ciphertext
+	size minus a 16 bytes block (the last block of the ciphertext file
+	is used to store the nonce).
+      </p>
+
+      <p>
+	The <strong class="mono">open()</strong> callback is merely a
+	placeholder, since the only file we use remains open until
+	the filesystem is unmounted.
+      </p>
+
+      <pre>
+static int
+open_callback(const char *path, struct fuse_file_info *fi) {
+    return 0;
+}
+      </pre>
+
+      <p>
+	Now comes the most complicated part of the program: the input/output
+	functions. First a couple of functions are defined, to read
+	sequences of blocks from the encrypted file:
+      </p>
+
+      <pre>
+
+#define MAX_BLOCK_SEQUENCE_SIZE ((BLOCK_SIZE)*256)
+
+static int
+read_block_sequence(uint8_t *blocks, size_t size,
+		     uint64_t first_block_num) {
+    fseek(encrypted_fp, first_block_num * (BLOCK_SIZE), SEEK_SET);
+    return fread(blocks, 1, size, encrypted_fp);
+}
+
+static int
+write_block_sequence(const uint8_t *blocks, size_t size,
+		     uint64_t first_block_num) {
+    fseek(encrypted_fp, first_block_num * (BLOCK_SIZE), SEEK_SET);
+    return fwrite(blocks, 1, size, encrypted_fp);    
+}
+      </pre>
+
+      <p>
+	After reading a sequence, it is necessary to decrypt it
+	before returning the data to the calling process. Vice-versa
+	we need to encrypt data before writing it in the encrypted file
+	when the calling process issue a <strong class="mono">write()</strong> call. The following functions handle this.
+      </p>
+
+      <p>
+	The <strong class="mono">read()</strong> callback:
+      </p>
+      
+      <pre>
+static int
+read_callback(const char *path, char *buf, size_t size,
+	      off_t offset, struct fuse_file_info *fi) {
+    
+    if (strcmp(path, "/" PLAIN_FILENAME) == 0) {
+
+        off_t len = encrypted_stat.st_size - sizeof(nonce);
+
+	if (offset >= len) {
+	    return 0;
+    	}
+
+	if (offset + size > len) {
+	    size = len - offset;
+	}
+
+	if(size > MAX_BLOCK_SEQUENCE_SIZE) {
+	    size = MAX_BLOCK_SEQUENCE_SIZE;
+	}
+
+	/* allocate space for sequence */
+
+	// we add an extra block to handle unaligned reads:
+	uint8_t blocks[MAX_BLOCK_SEQUENCE_SIZE + (BLOCK_SIZE)];
+
+	uint64_t first_block_num = offset / (BLOCK_SIZE);
+    	size_t seq_size = size;
+
+	/* fill extra bytes to obtain a sequence length
+	   which is a multiple of the block size */
+	
+	if(size % (BLOCK_SIZE) != 0)
+	    seq_size += (BLOCK_SIZE) - (size % (BLOCK_SIZE));
+
+	/* read sequence of blocks */
+	
+	size_t ret = read_block_sequence(blocks, seq_size, first_block_num);
+	if(ret != seq_size) {
+	    fprintf(stderr,
+		    "read_block_sequence(): read only %d out of %d bytes",
+		    ret, seq_size);
+	    return 0;
+	}
+
+	/* decrypt sequence of blocks */
+
+	enc_dec_block_sequence(blocks, seq_size,
+			       main_key, nonce, first_block_num);
+
+	memcpy(buf, blocks + (offset % (BLOCK_SIZE)), size);
+	
+	return size;
+    }
+
+    return -ENOENT;
+}
+      </pre>
+
+      <p>
+	And the <strong class="mono">write()</strong> callback:
+      </p>
+
+      <pre>
+static int
+write_callback(const char *path, const char *buf, size_t size,
+	       off_t offset, struct fuse_file_info *fi) {
+
+    if (strcmp(path, "/" PLAIN_FILENAME) == 0) {
+
+        off_t len = encrypted_stat.st_size - sizeof(nonce);
+
+	if (offset >= len) {
+	    return 0;
+    	}
+
+	if (offset + size > len) {
+	    size = len - offset;
+	    if(!size) return 0;
+	}
+
+	if(size > MAX_BLOCK_SEQUENCE_SIZE) {
+	    size = MAX_BLOCK_SEQUENCE_SIZE;
+	}
+
+	/* allocate space for sequence */
+
+	// we add an extra block to handle unaligned reads:
+    	uint8_t blocks[MAX_BLOCK_SEQUENCE_SIZE + (BLOCK_SIZE)];
+
+	uint64_t first_block_num = offset / (BLOCK_SIZE);
+    	size_t seq_size = size;
+
+	/* fill extra bytes to obtain a sequence length
+	   which is a multiple of the block size */
+
+	if(size % (BLOCK_SIZE) != 0)
+	    seq_size += (BLOCK_SIZE) - (size % (BLOCK_SIZE));
+
+	/* read sequence of blocks */
+	
+	size_t ret = read_block_sequence(blocks, seq_size, first_block_num);
+	if(ret != seq_size) {
+	    fprintf(stderr,
+		    "read_block_sequence(): read only %d out of %d bytes",
+		    ret, seq_size);
+	    return 0;
+	}
+
+	/* decrypt sequence of blocks */
+
+	enc_dec_block_sequence(blocks, seq_size,
+			       main_key, nonce, first_block_num);
+
+	memcpy(blocks + (offset % (BLOCK_SIZE)), buf, size);
+
+	/* re-encrypt sequence */
+	
+	enc_dec_block_sequence(blocks, seq_size,
+			       main_key, nonce, first_block_num);
+
+	/* write it back in encrypted file */
+	
+	ret = write_block_sequence(blocks, seq_size, first_block_num);
+	if(ret != seq_size) {
+	    fprintf(stderr,
+		    "write_block_sequence(): written only %d out of %d bytes",
+		    ret, seq_size);
+	    return 0;
+	}
+
+	return size;
+    }
+
+    return -ENOENT;
+}
+      </pre>
+
+      <p>
+	Since these are the most complicated functions of the code,
+	we will take a little space to explain them more in detail.
+      </p>
+
+      <p>
+	First of all some checks are performed to see if the requested
+	<strong class="mono">read()</strong> or <strong class="mono">write()</strong> call exceeds the file limits or the maximum length for sequences.
+	If that is the case, the requested length is resized to
+	an acceptable value.
+      </p>
+
+      <p>
+	Another important point to note is that the requested
+	read or write may not be block-aligned.
+	Since we are able to decrypt only block-aligned sequences,
+	we need to read extra bytes. This is handled transparently.
+      </p>
+
+      <p>
+	After program has used the functions previously defined to read
+	and write sequences of blocks, it needs to decrypt the data.
+	The following section defines the cryptographic functions
+	used.
+      </p>
+
+      <h3>Cryptographic functions and OpenSSL</h3>
+
+      <p>
+	First of all we isolate the functions we use directly from
+	openssl, then we will describe our additions.
+      </p>
+
+      <p>
+	We basically need only three primitives:
+      </p>
+
+      <pre>
+#define passphrase_hash prim_passphrase_sha256
+
+#define enc_block prim_enc_block_aes256
+#define dec_block prim_dec_block_aes256
+      </pre>
+
+      <p>
+	The first primitive is used to generate a key from the user's
+	passhrase. We implement it in a very simple way:
+      </p>
+
+      <pre>
+static void
+prim_passphrase_sha256(uint8_t digest[SHA256_DIGEST_LENGTH],
+                       const uint8_t *passwd, size_t passwdsz,
+                       const uint8_t *salt, size_t saltsz)
+{
+	SHA256_CTX ctx;
+
+	SHA256_Init(&ctx);
+	SHA256_Update(&ctx, passwd, passwdsz);
+	SHA256_Update(&ctx, salt, saltsz);
+	SHA256_Final(digest, &ctx);
+}
+      </pre>
+
+      <p>
+	The function is straightforward: we concatenate the passphrase and
+	a salt, and hash them using SHA256 which produces an output of
+	the correct size. We use a salt value of 128 bits, takes from
+	the last block of the encrypted file (the same block used to
+	generate the nonce).
+      </p>
+
+      <p>
+	We rely entirely on the strength of SHA256, and do not use any
+	standard key derivation algorithm to make the process more
+	resistant against brute forcing attacks.
+	In a future article we will instead see how to use PBKDF2 to
+	do the same.
+      </p>
+
+      <p>
+	The next two primitives we need are those used to encrypt
+	and decrypt a single block using AES.
+	We simply wrap openssl functions:
+      </p>
+
+      <pre>
+static void
+prim_enc_block_aes256(uint8_t cipher[BLOCK_SIZE],
+		      const uint8_t plain[BLOCK_SIZE],
+		      const uint8_t key[KEY_SIZE])
+{
+    AES_KEY aes_key;
+
+    AES_set_encrypt_key(key, KEY_BITS, &aes_key);
+    AES_encrypt(plain, cipher, &aes_key);
+}
+
+static void
+prim_dec_block_aes256(const uint8_t cipher[BLOCK_SIZE],
+		      uint8_t plain[BLOCK_SIZE],
+		      const uint8_t key[KEY_SIZE])
+{
+    AES_KEY aes_key;
+
+    AES_set_decrypt_key(key, KEY_BITS, &aes_key);
+    AES_decrypt(cipher, plain, &aes_key);
+}
+      </pre>
+
+      <p>
+	In CTR mode we only use the encryption primitive. Before reading
+	the code for CTR mode, here is a graphic summary provided of the
+	mode, provided by <a href="https://en.wikipedia.org/wiki/Block_cipher_mode_of_operation">wikipedia</a>:
+      </p>
+
+      <img class="center" src="images/601px-CTR_encryption_2.svg.png" alt="CTR mode of operation"></img>
+
+      <p>
+	To use AES in CTR mode we implement a couple of functions.
+	First we need a function that combines the nonce with the counter
+	of the block and encrypt them with the key.
+	The obtained data will be xor-ed with the plaintext block
+	to encrypt it.
+      </p>
+	
+      <pre>
+	static void
+ctr_key_for_block(uint8_t block_key[BLOCK_SIZE],
+		  const uint64_t main_key[KEY_BITS/64],
+		  const uint64_t nonce[BLOCK_BITS/64],
+		  uint64_t block_num)
+{
+    uint64_t nonce_indexed[BLOCK_BITS/64] = {
+	nonce[0], nonce[1] ^ htobe64(block_num)
+    };
+
+    enc_block(block_key, (const uint8_t *)nonce_indexed, (const uint8_t *)main_key);
+}
+      </pre>
+
+      <p>
+	Instead of limiting the nonce to 64 bits, we use a nonce of 128 bits
+	and simply xor the nonce with the counter. After that we encrypt it
+	with the key using our primitive.
+      </p>
+
+      <p>
+	Finally we provide an utility to xor two blocks together:
+      </p>
+
+      <pre>
+static void
+ctr_xor_block(uint64_t block[BLOCK_BITS/64], const uint64_t block_key[BLOCK_BITS/64])
+{
+    register int i;
+
+    for(i = 0; i < BLOCK_BITS/64; i++) {
+	block[i] ^= block_key[i];
+    }
+}
+      </pre>
+
+      <p>
+	Now that all the important parts of the code have been illustrated
+	you can refer directly to the source code for the missing part.
+	[TODO: ref to source code]
+      </p>
+
+      <br>
+
+      <h2>Final considerations</h2>
+
+      <p>
+	In less than 400 lines of code we obtained a program for transparent
+	file encryptions.
+      </p>
+
+      <p>
+	Using AES in CTR mode, this program is suitable only for static files,
+	i.e. files that are not modified after they have been encrypted.
+	This avoid a well known limitation of the CTR mode that permits
+	the attacker to recover part of the plaintext if he is able to
+	obtain multiple blocks encrypted with the same key and nonce.
+      </p>
+
+      <p>
+	In a following article we will develop a more advanced encryption
+	software, using AES in XTS mode. This program will be suitable
+	for full-disk encryption.
+      </p>    
+      
+      <hr width="100%" size="2">
 
       <p>
 	<span id="fn1"></span>
