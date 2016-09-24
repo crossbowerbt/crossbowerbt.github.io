@@ -15,7 +15,7 @@
 
       <p>
 	<strong>NOTE:</strong> This post is the second in a series
-	about the practical development of crypto systems. If you like
+	about the practical development of encryption systems. If you like
 	it, check back later to see if updates have been published.
       </p>
 
@@ -33,7 +33,7 @@
       
       <p>
 	This article illustrate the development of a simple encryption
-	system using AES256 in CTR mode and Fuse to provide a
+	system using AES256 in CTR mode and Fuse, that provides a
 	transparent interface to encrypted data.
       </p>
 
@@ -41,56 +41,69 @@
 	The choice of libraries and algorithms has been made according
 	to the rules expressed by the
 	<a href="encryption_manifesto.html">encryption manifesto</a>.
-	This project is a first showcase that illustrate how the rules
-	of the manifesto can apply to real software. So, it is a natural
-	extension of it.
+	This project is a first showcase that illustrate how its rules
+	can be applied to the development of programs.
+	You can consider this article a natural extension of the manifesto.
       </p>
 
-      <p>If you want to skip the rationale you can go directly to the section describing the <a href="#implementation">implementation</a>.</p>
+      <p>If you want to skip the rationale you can go directly to the section describing the <a href="#implementation">implementation</a>.
+	If you are only interested in using the tool, go the the <a href="#usage">usage</a> section.
+      </p>
 
       <h2>Rationale</h2>
       
       <p>
-	Particular care has been has been taken in assuring that the program is portable, but also simple to understand and compile. In fact the program is code entirely in a single file, that produces a single executable.
+	Particular care has been taken in assuring that the program is portable, but also simple to understand and compile. The source code is contained entirely in a single file, that produces a single executable.
       </p>
 
       <p>
-	The program takes a single encrypted file, and provides, using fuse,
-	a virtual filesystem containing a single plaintext file. This file
-	can be used directly to store data, or a filesystem can be created on
-	it using standard OS facilities
+	The program takes as input a single encrypted file, and provides,
+	using fuse, a virtual filesystem containing a single plaintext file.
+	This plaintext file can be used directly to store data,
+	or a filesystem can be created on it, to store multiple files
 	<sup class="footnote"><span id="fn1r"></span><a href="#fn1">1</a></sup>.
       </p>
 
       <p>
-	Fuse has been chosen since it provides transparent access to plaintext.
-	Consider the following scenario: encrypting a PDF file using AES.
+	Fuse has been chosen since it can provide a transparent access
+	to plaintext data. Consider the following scenario to understand
+	why this is convenient.
+      </p>
+
+      <p>
+	Suppose you want to encrypt a PDF document using a strong block cipher
+	(e.g. AES) in a portable way.
 	PDF viewers require random read access to all sections of the
-	displayed document. Encrypting the document using, for example,
+	documents they display. Encrypting the document using, for example,
 	a compression tool supporting AES, or even using openssl,
-	requires to decompress the file to an unencrypted support
-	before a viewer can open the it. This procedure is not optimal:
+	requires first to decompress the file to an unencrypted support
+	and only then a viewer can visualize it.
+      </p>
+
+      <p>
+	This procedure is very annoying:
 	it is true that is possible to decompress the file in a RAM only
-	filesystem, but this requires explicit user intervention, and is
-	error-prone. Using a virtual filesystem it is possible to avoid
-	this problem.
+	filesystem, but this requires an explicit intervention from the user,
+	and is very error-prone.
+	If we instead use a virtual filesystem, this whole procedure is
+	automatic and transparent.
       </p>
 
       <p>
 	Another advantage of fuse is its wide adoption on every major
 	operating system. Linux supports fuse, and also all modern BSD systems
-	supports it (including Mac OS). Even on Windows there are compatible
+	(including Mac OS). Even on Windows there are compatible
 	libraries
 	<sup class="footnote"><span id="fn2r"></span><a href="#fn2">2</a></sup>.
-	The program uses only standard functions and libraries, to keep
-	portability issues to the minimum.
+	The program uses only standard functions and libraries, so portability
+	should not be a problem.
       </p>
 
       <p>
 	Cryptographic primitives are provided by openssl/libressl, available
 	on any major operating system. Functions imported are only the
-	strictly necessary, and should be easy to replace them with equivalent
-	ones.
+	strictly necessary, and they should be easy to replace with equivalent
+	functions from different libraries.
       </p>
 
       <br>
@@ -101,7 +114,7 @@
 
       <p>
 	First we delineate a skeleton structure for the program, and then
-	fill in the details in successive sections.
+	fill in the details in the successive section.
       </p>
 
       <h3>Fuse Basic Callbacks Functions</h3>
@@ -112,16 +125,18 @@
       </p>
 
       <p>
-	<strong class="mono">Open()</strong> and <strong class="mono">close()</strong> are needed when.
+	<strong class="mono">Open()</strong> and <strong class="mono">close()</strong>
+	are only placeholders, since the unique file provided by the filesystem
+	remains open until the filesystem is unmounted.
       </p>
 
       <p>
-	<strong class="mono">Read()</strong> and <strong class="mono">write()</strong> are the core
+	<strong class="mono">Read()</strong> and <strong class="mono">write()</strong> form the core
 	of the program. These two functions provide a transparent way to
 	access the encrypted data. We will use <strong class="mono">read()</strong> to
 	decipher a block of ciphertext and return it to the user, and
 	<strong class="mono">write()</strong> to re-encrypt user plaintext and store
-	it back in the file.
+	it back in the encrypted file.
       </p>
 
       <p>
@@ -133,7 +148,7 @@
 
       <p>
 	These are the only functions needed by fuse to create an encrypted
-	virtual filesystem. We will now see what cryptographic functions
+	filesystem. We will now see what cryptographic functions
 	are needed.
       </p>
 
@@ -143,26 +158,27 @@
 	To unlock an encrypted file, we first need to get the decryption key
 	from the user. Assuming we ask the user a passphrase, we need a way to
 	convert this passphrase into a key that is directly usable with the
-	AES256 algorithm.
+	AES256 block cipher.
       </p>
 
       <p>
 	There are several standard ways to generate a key from a passphrase
-	(notably PBKDF2 or, more recently, scrypt). For this first program
-	however we will simply take a salted hash of the passphrase, using
-	SHA256, that provides an output of the correct size for AES256.
+	(notably PBKDF2 or, more recently, scrypt). This time, however,
+	we will simply take a salted hash of the passphrase, using
+	SHA256, that already provides an output of the correct size.
       </p>
 
       <p>
 	To encrypt and decrypt data we will use AES256 in CTR mode.
 	This mode is easy to implement and is secure if good values
-	for the nonce are selected.
+	for the nonce are selected, and only a single block is encrypted
+	using the same values for key, nonce and counter.
       </p>
 
       <p>
-	From openssl we will only import the basic AES256 block function
+	From openssl we will only import the basic AES block functions
 	(AES256 in ECB mode), and SHA256. We will implement the other
-	cryptographic functions we need in the code.
+	cryptographic functions we need in our code.
       </p>
 
       <h3>Input file and entropy source</h3>
@@ -174,9 +190,10 @@
       </p>
 
       <p>
-	Since the program expect an encrypted input file to mount,
-	even on its first use, we can just provide it a file of the
-	correct size generated, for example, using <span class="mono">/dev/urandom</span>:
+	The program expects an encrypted file as input,
+	even for the first time it is mounted. We can just provide it a file of the
+	correct size, generated by a PRNG of our choice. For example we can use
+	<span class="mono">/dev/urandom</span>:
       </p>
 
       <pre>dd if=/dev/urandom of=encrypted_file bs=16 count=1025</pre>
@@ -189,22 +206,22 @@
       </p>
 
       <p>
-	In addition this file can be generated on systems that have access
-	to good sources of entropy, and then copied on systems which have not
-	(e.g. embedded systems).
+	This file can also be generated on a third system, that may have
+	access to better entropy sources, and then copied on the system
+	that will use it. This avoids some pitfalls that arise on embedded
+	systems or weakened systems.
       </p>
 
       <p>
 	But the main advantage is that the program is not tied to a single
-	PRNG implementation, and so is more portable and avoids many
-	tricky problems that arise from a bad use of entropy.
+	PRNG implementation, and so is more portable and does not need
+	to be modified in the case problems with current PRNGs will be
+	discovered in the future.	
       </p>
 
       <br>
 
-      <span id="implementation"></span>
-
-      <h2>Implementation</h2>
+      <h2>Source Code</h2>
 
       <p>
 	Here we describe the key parts of the code.
@@ -325,7 +342,7 @@ write_block_sequence(const uint8_t *blocks, size_t size,
       <p>
 	After reading a sequence, it is necessary to decrypt it
 	before returning the data to the calling process. Vice-versa
-	we need to encrypt data before writing it in the encrypted file
+	we need to encrypt data before writing it to the encrypted file,
 	when the calling process issue a <strong class="mono">write()</strong> call. The following functions handle this.
       </p>
 
@@ -473,12 +490,12 @@ write_callback(const char *path, const char *buf, size_t size,
 
       <p>
 	Since these are the most complicated functions of the code,
-	we will take a little space to explain them more in detail.
+	a little space is taken here to describe them.
       </p>
 
       <p>
 	First of all some checks are performed to see if the requested
-	<strong class="mono">read()</strong> or <strong class="mono">write()</strong> call exceeds the file limits or the maximum length for sequences.
+	<strong class="mono">read()</strong> or <strong class="mono">write()</strong> call exceeds encrypted file limits or the maximum sequence length.
 	If that is the case, the requested length is resized to
 	an acceptable value.
       </p>
@@ -487,11 +504,11 @@ write_callback(const char *path, const char *buf, size_t size,
 	Another important point to note is that the requested
 	read or write may not be block-aligned.
 	Since we are able to decrypt only block-aligned sequences,
-	we need to read extra bytes. This is handled transparently.
+	we need to read some extra bytes. This is handled transparently.
       </p>
 
       <p>
-	After program has used the functions previously defined to read
+	After the program has used the functions previously defined to read
 	and write sequences of blocks, it needs to decrypt the data.
 	The following section defines the cryptographic functions
 	used.
@@ -516,7 +533,7 @@ write_callback(const char *path, const char *buf, size_t size,
       </pre>
 
       <p>
-	The first primitive is used to generate a key from the user's
+	The first primitive is used to generate the main key from the user's
 	passhrase. We implement it in a very simple way:
       </p>
 
@@ -537,8 +554,9 @@ prim_passphrase_sha256(uint8_t digest[SHA256_DIGEST_LENGTH],
 
       <p>
 	The function is straightforward: we concatenate the passphrase and
-	a salt, and hash them using SHA256 which produces an output of
-	the correct size. We use a salt value of 128 bits, takes from
+	a salt, and hash them using SHA256, to obtain an output of
+	the size we need (the main key for AES256).
+	We use a salt value of 128 bits, taken from
 	the last block of the encrypted file (the same block used to
 	generate the nonce).
       </p>
@@ -546,9 +564,9 @@ prim_passphrase_sha256(uint8_t digest[SHA256_DIGEST_LENGTH],
       <p>
 	We rely entirely on the strength of SHA256, and do not use any
 	standard key derivation algorithm to make the process more
-	resistant against brute forcing attacks.
+	resistant against brute force attacks.
 	In a future article we will instead see how to use PBKDF2 to
-	do the same.
+	derive a key from a passphrase.
       </p>
 
       <p>
@@ -582,23 +600,22 @@ prim_dec_block_aes256(const uint8_t cipher[BLOCK_SIZE],
       </pre>
 
       <p>
-	In CTR mode we only use the encryption primitive. Before reading
-	the code for CTR mode, here is a graphic summary provided of the
-	mode, provided by <a href="https://en.wikipedia.org/wiki/Block_cipher_mode_of_operation">wikipedia</a>:
+	In CTR mode we only use the first encryption primitive. The following
+	image, provided by <a href="https://en.wikipedia.org/wiki/Block_cipher_mode_of_operation">wikipedia</a>, summarises the CTR mode of operation:
       </p>
 
       <img class="center" src="images/601px-CTR_encryption_2.svg.png" alt="CTR mode of operation"></img>
 
       <p>
-	To use AES in CTR mode we implement a couple of functions.
+	To use AES in CTR mode we implement a couple of additional functions.
 	First we need a function that combines the nonce with the counter
-	of the block and encrypt them with the key.
-	The obtained data will be xor-ed with the plaintext block
+	and encrypts them with the main key, to generate a block.
+	This block will be xor-ed with the corresponding plaintext block
 	to encrypt it.
       </p>
 	
       <pre>
-	static void
+static void
 ctr_key_for_block(uint8_t block_key[BLOCK_SIZE],
 		  const uint64_t main_key[KEY_BITS/64],
 		  const uint64_t nonce[BLOCK_BITS/64],
@@ -615,7 +632,7 @@ ctr_key_for_block(uint8_t block_key[BLOCK_SIZE],
       <p>
 	Instead of limiting the nonce to 64 bits, we use a nonce of 128 bits
 	and simply xor the nonce with the counter. After that we encrypt it
-	with the key using our primitive.
+	with the main key using our primitive.
       </p>
 
       <p>
@@ -642,6 +659,16 @@ ctr_xor_block(uint64_t block[BLOCK_BITS/64], const uint64_t block_key[BLOCK_BITS
 
       <br>
 
+      <span id="usage"></span>
+
+      <h2>Usage</h2>
+
+      <p>
+	TODO...
+      </p>
+      
+      <br>
+
       <h2>Final considerations</h2>
 
       <p>
@@ -651,7 +678,7 @@ ctr_xor_block(uint64_t block[BLOCK_BITS/64], const uint64_t block_key[BLOCK_BITS
 
       <p>
 	Using AES in CTR mode, this program is suitable only for static files,
-	i.e. files that are not modified after they have been encrypted.
+	i.e. files that are not modified after they are encrypted.
 	This avoid a well known limitation of the CTR mode that permits
 	the attacker to recover part of the plaintext if he is able to
 	obtain multiple blocks encrypted with the same key and nonce.
@@ -672,14 +699,15 @@ ctr_xor_block(uint64_t block[BLOCK_BITS/64], const uint64_t block_key[BLOCK_BITS
 	  This mode can not safely used for filesystem encryption, see:
 	  <a href="http://sockpuppet.org/blog/2014/04/30/you-dont-want-xts/">You don't want XTS</a>.
 	  The next article will describe how to implement a similar program
-	  to encrypt partitions, using XTS mode. Please use the program
-	  developed here only to store static files.
+	  to encrypt hard-diks partitions, using XTS mode.
+	  Please use the program developed here only to store static files
+	  (or read-only filesystems).
 	  Return to <a href="#fn1r">article</a>.</small>
       </p>
       
       <p>
 	<span id="fn2"></span>
-	<small class="footnote"><strong>Footnote 2.</strong> There are fuse compatible libraries even for windows. Give a look at: <a href="https://github.com/dokan-dev/dokany">https://github.com/dokan-dev/dokany</a>. Return to <a href="#fn2r">article</a>.</small>
+	<small class="footnote"><strong>Footnote 2.</strong> There are fuse compatible libraries even for Windows. Give a look at: <a href="https://github.com/dokan-dev/dokany">https://github.com/dokan-dev/dokany</a>. Return to <a href="#fn2r">article</a>.</small>
       </p>
 
     </article>
