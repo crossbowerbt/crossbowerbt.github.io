@@ -1,0 +1,45 @@
+.so head.inc
+
+.HTL
+This is
+the title
+
+.HnS 0
+MacOSXHints
+.HnE
+
+.ad b
+.in 0
+
+.HnS 1
+First Section
+.HnE
+
+Here is a fine first paragraph
+
+Here is the second.
+
+Here is the third.
+
+Here is a preformatted paragraph:
+
+.CDS
+Si tratta in altre parole di una raccolta di documenti ipertestuali che viene
+aggiornata dai suoi stessi utilizzatori e i cui contenuti sono sviluppati
+in collaborazione da tutti coloro che vi hanno accesso
+(contenuto generato dagli utenti), memorizzati normalmente
+su un database o un repository.
+.CDE
+
+.HnS 1
+Second Section
+.HnE
+
+La modifica dei contenuti \[`e] aperta, nel senso che il testo pu\[`o] essere modificato da tutti gli utenti (a volte soltanto se registrati, altre volte anche anonimi) contribuendo non solo per aggiunte, come accade solitamente nei forum, ma anche cambiando e cancellando ci\[`o] che hanno scritto gli autori precedenti.
+Vedi anche:
+.URL "esempio di url" "esempio di url" .
+
+Ogni modifica \[`e] registrata in una cronologia che permette in caso di necessit\[`a] di riportare il testo alla versione precedente (rollback); lo scopo \[`e] quello di condividere, scambiare, immagazzinare e ottimizzare le informazioni in modo collaborativo.
+
+.so foot.inc
+
