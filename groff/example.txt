@@ -45,5 +45,30 @@ di necessit\[`a] di riportare il testo alla versione precedente
 (rollback); lo scopo \[`e] quello di condividere, scambiare,
 immagazzinare e ottimizzare le informazioni in modo collaborativo.
 
+
+This is an unordered list example:
+
+.ULS
+.LI
+hello
+.LI
+foo
+.LI
+haha
+.ULE
+
+This is an example of ordered list:
+
+.OLS
+.LI
+hello
+.LI
+foo
+.LI
+haha
+.OLE
+
+There is also the definition list.
+
 .so foot.inc
 
