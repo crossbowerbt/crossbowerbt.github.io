@@ -8,9 +8,6 @@ the title
 MacOSXHints
 .HnE
 
-.ad b
-.in 0
-
 .HnS 1
 First Section
 .HnE
