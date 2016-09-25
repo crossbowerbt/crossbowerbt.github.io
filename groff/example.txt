@@ -4,6 +4,8 @@
 This is
 the title
 
+.ARTICLE
+
 .HnS 0
 MacOSXHints
 .HnE
@@ -14,7 +16,8 @@ First Section
 
 Here is a fine first paragraph
 
-Here is the second.
+Here is the second
+.FOOTREF 1 .
 
 Here is the third.
 
@@ -32,8 +35,13 @@ database o un repository.
 Second Section
 .HnE
 
-La modifica dei contenuti \[`e] aperta, nel senso che il testo pu\[`o]
-essere modificato da tutti gli utenti (a volte soltanto se registrati,
+La
+.STRONG modifica
+dei
+.EM contenuti
+\[`e] aperta, nel senso che il testo pu\[`o]
+.MONO essere
+modificato da tutti gli utenti (a volte soltanto se registrati,
 altre volte anche anonimi) contribuendo non solo per aggiunte, come
 accade solitamente nei forum, ma anche cambiando e cancellando ci\[`o]
 che hanno scritto gli autori precedenti.
@@ -43,8 +51,8 @@ Vedi anche:
 Ogni modifica \[`e] registrata in una cronologia che permette in caso
 di necessit\[`a] di riportare il testo alla versione precedente
 (rollback); lo scopo \[`e] quello di condividere, scambiare,
-immagazzinare e ottimizzare le informazioni in modo collaborativo.
-
+immagazzinare e ottimizzare le informazioni in modo collaborativo
+.FOOTREF 2 .
 
 This is an unordered list example:
 
@@ -69,6 +77,18 @@ haha
 .OLE
 
 There is also the definition list.
+
+.HR
+
+.FOOTNOTE 1
+This is an example footnote.
+.FOOTEND 1
+
+.FOOTNOTE 2
+This is another example footnote.
+.FOOTEND 2
+
+.ARTICLE_END
 
 .so foot.inc
 

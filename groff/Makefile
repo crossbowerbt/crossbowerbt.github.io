@@ -1,6 +1,8 @@
 GROFF=groff
 GROFF_OPS=-P-l -Thtml -mwww
 
+all: example.html
+
 %.html : %.txt
 	$(GROFF) $(GROFF_OPS) > $@ $<
 	
