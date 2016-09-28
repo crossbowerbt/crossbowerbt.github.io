@@ -50,13 +50,13 @@
 
       <p>
 	<strong>Principle I: Security.</strong> The main objective of a cryptography system is to protect its users from
-	a wide range of attacks. This is really difficult, since in cryptography any technique that differentiates (even just a little)
-	a system from its intended behaviour is considered an attack.
+	a wide range of attacks. This is really difficult, since in cryptography any technique that differentiates (just a little)
+	a crypto system from its intended behaviour is considered an attack.
       </p>
 	  
       <p>
 	We can not afford to sacrify security in exchange for a little user-friendliness, which most often isn't.
-	User friendlyness in encryption systems is much more than a nice graphical interface: it is <strong>flexibility</strong>.
+	User friendlyness in encryption systems is much more than a nice graphical interface: it is <em><strong>flexibility</strong></em>.
 	Security remains, criteria for user-friendliness are always changing.
       </p>
 
@@ -68,7 +68,10 @@
       <p>
 	Flexibility often requires doing less from a developer's point of view, to allow the user to fill in what he really needs.
 	In spite of this being simpler, developers always overdo things, limiting user's possibilities.
-	Do not limit software flexibility: achieve the same interface in an <strong>esoteric</strong> way.
+      </p>
+
+      <p>
+	Do not limit software flexibility: achieve the same interface in an <em><strong>esoteric</strong></em> way.
       </p>
 
       <p>
@@ -78,7 +81,7 @@
 
       <p>
 	There is not much to write about this, just learn from the past.
-	Write cryptography software like you are writing a great book: a great book that reveals different meanings
+	Write cryptography software like you are writing a great book: a book that reveals different meanings
 	to readers of different knowledge<sup class="footnote"><span id="fn1r"></span><a href="#fn1">1</a></sup>.
       </p>
 
@@ -105,13 +108,17 @@
       <p>
 	<strong>PrRule 2: Simplicity of Understanding.</strong> The only true documentation of a cryptography system is its code.
 	No document can replace code: code is where parameters are chosen, where algorithms are implemented
-	(documentation can merely tell an algorithm's <em>name</em>), and where backdoors are hidden by hidden parties.
+	(documentation can merely tell algorithms' names), and where backdoors are hidden by hidden parties.
       </p>
 
       <p>
-	Every user, novice or expert, should be able to read the code and to map it against public
+	Every user, novice or expert, should be able to read the code and map it against public
 	implementations of the algorithms used. If this seems unlikely consider this: people live and die depending
-	on how well they understand their operations. Developers do not risk their lives, users do: facing death,
+	on how well they understand their operations.
+      </p>
+
+      <p>
+	Developers do not risk their lives, users do: facing death,
 	users will gain the understanding needed to adapt the systems they use.
       </p>
 
@@ -122,7 +129,7 @@
       </p>
 	
       <p>
-	<strong>PrRule 4: Lightness.</strong> Cryptography software does not need a long and complicated code, an elegant kernel is better.
+	<strong>PrRule 4: Lightness.</strong> Cryptography does not need a long and complicated code, an elegant kernel is better.
 	Cryptography does not need hundred of library dependencies, just the essentials since each link can break the chain.
       </p>
 
