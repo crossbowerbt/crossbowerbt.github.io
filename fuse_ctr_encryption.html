@@ -771,6 +771,32 @@ $ dd if=~/Documents/file.pdf of=mnt/plain conv=notrunc
       </p>
 
       <p>
+	One of the most esoteric things you can do, is to create a filesystem on <em class="mono">mnt/plain</em>, to store
+	multiple files. If you choose a filesystem like <em class="mono">vfat</em> the storage will also be portable across
+	multiple operating systems.
+      </p>
+
+      <pre>
+# mkfs.vfat mnt/plain
+mkfs.fat 3.0.28 (2015-05-16)
+
+# mount mnt/plain mnt2/
+
+# echo "haha" >  mnt2/foo
+
+# ls -l mnt2/
+total 2
+-rwxr-xr-x 1 root root 5 Oct  2 09:10 foo
+      </pre>
+
+      <p>
+	As i said before this usage is secure only for static filesystems<sup class="footnote"><span id="fn1r"></span><a href="#fn1">1</a></sup>.
+	In the example we first created a vfat filesystem on <em class="mono">mnt/plain</em> and then mounted it on another mount point.
+	At this point you can add files to the filesystem to obtain a versatile storage, without complicating the source code of the tool,
+	since the service is provided by the operating system.
+      </p>
+
+      <p>
 	Finally, remember to unmount the encrypted file when you no longer need to access it.
       </p>
 
