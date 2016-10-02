@@ -3,6 +3,7 @@ https://crossbowerbt.github.io/contacts.html
 https://crossbowerbt.github.io/cymothoa_intro.html
 https://crossbowerbt.github.io/dns_despoofing.html
 https://crossbowerbt.github.io/encryption_manifesto.html
+https://crossbowerbt.github.io/fuse_ctr_encryption.html
 https://crossbowerbt.github.io/hexinject.html
 https://crossbowerbt.github.io/hexinject_usb.html
 https://crossbowerbt.github.io/in_memory_fuzzing.html
