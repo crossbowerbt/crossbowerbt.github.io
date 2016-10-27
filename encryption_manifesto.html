@@ -29,12 +29,19 @@
       <p>
 	This manifesto was written to point at the deficiencies of a number of ideas now prevalent in encryption software.
 	It deals with practical difficulties that arise when using encryption programs, not with limitations of the underlying
-	mathemathical theory.
+	mathematical theory.
       </p>
 
       <p>
-	The objective is to simplify some of our assumptions as developers, about what an encryption program should and should not do,
-	thus helping to create software that really adapts to the necessities of its users.
+	Developers can live an healthier life and produce flexible and long-lasting software if they only simplify some of their assumptions.
+	There is a sort "collective feeling" about what an encryption program should and should not do, that sometimes
+	approaches a form of cargo-cult.
+      </p>
+
+      <p>
+	The dogmas of this cargo-cult limit the flexibility of the produced software. Breaking some of these dogmas,
+	we can create software that really adapts to the ever-changing necessities of its users: this is the key for
+	a lasting life.
       </p>
 
       <br>
@@ -42,24 +49,41 @@
       <h2>Philosophical Principles</h2>
 
       <p>
-	<strong>Principle I: Security.</strong> The main objective of a cryptography system is to protect its users from a wide range of attacks.
-	Security can not be sacrificed in exchange for a little user-friendliness.
+	<strong>Principle I: Security.</strong> The main objective of a cryptography system is to protect its users from
+	a wide range of attacks. This is really difficult, since in cryptography any technique that differentiates (just a little)
+	a crypto system from its intended behaviour is considered an attack.
+      </p>
+	  
+      <p>
+	We can not afford to sacrify security in exchange for a little user-friendliness, which most often isn't.
+	User friendlyness in encryption systems is much more than a nice graphical interface: it is <em><strong>flexibility</strong></em>.
 	Security remains, criteria for user-friendliness are always changing.
       </p>
 
       <p>
 	<strong>Principle II: Flexibility.</strong> Knowing the future doesn't not belong to us: we hardly know how our software
-	is used today, to predict its future uses is impossible. Flexibility often requires doing less from a developer's point of view, to allow the user to fill in what he really needs.
+	is used today, predicting its future uses is impossible.
+      </p>
+
+      <p>
+	Flexibility often requires doing less from a developer's point of view, to allow the user to fill in what he really needs.
 	In spite of this being simpler, developers always overdo things, limiting user's possibilities.
       </p>
 
       <p>
-	<strong>Principle III: Esoterism.</strong> Users are different: novices need good default settings, advanced users
-	need systems that can be tailored to perfectly fit their work habits. Cryptography software should be like
-	a book that reveal different meanings to readers of different knowledge and experience
-	<sup class="footnote"><span id="fn1r"></span><a href="#fn1">1</a></sup>.
+	Do not limit software flexibility: achieve the same interface in an <em><strong>esoteric</strong></em> way.
       </p>
 
+      <p>
+	<strong>Principle III: Esoterism.</strong> Users are different: novices need good default settings, advanced users
+	need systems that can be tailored to perfectly fit their work habits.
+      </p>
+
+      <p>
+	There is not much to write about this, just learn from the past.
+	Write cryptography software like you are writing a great book: a book that reveals different meanings
+	to readers of different knowledge<sup class="footnote"><span id="fn1r"></span><a href="#fn1">1</a></sup>.
+      </p>
 
       <br>
 
@@ -67,7 +91,7 @@
 
       <p>
 	<strong>PrRule 1: Portability.</strong> Information is hidden to be exchanged is a secure way, or to be stored for a long time
-	(in a secure way).
+	(also in a secure way).
       </p>
 
       <p>
@@ -76,38 +100,41 @@
       </p>
 
       <p>
-	A good crypto system must be so flexible to work (or potentially work) on every system available today
-        <sup class="footnote"><span id="fn2r"></span><a href="#fn2">2</a></sup>.
-	This is also a strong basis for the future. 
+	A good crypto system must be so flexible to work (or potentially work) on every system available today<sup class="footnote"><span id="fn2r"></span><a href="#fn2">2</a></sup>.
+	This is also a strong basis for the future, the concrete way.
       </p>
 
       <p>
 	<strong>PrRule 2: Simplicity of Understanding.</strong> The only true documentation of a cryptography system is its code.
 	No document can replace code: code is where parameters are chosen, where algorithms are implemented
-	(documentation can merely tell an algorithm's <em>name</em>), and where backdoors are hidden by hidden parties.
+	(documentation merely tells algorithms' names), and where backdoors are hidden by hidden parties.
       </p>
 
       <p>
-	Every user, novice or expert, should be able to read the code and map it against a public
-	implementation of the algorithms used. If this seems unlikely consider this: people live and die depending
-	on how well they understand their operations. Developers do not risk their lives, users do: facing death,
-	users will gain the understanding needed to adapt the systems.
+	Every user, novice or expert, should be able to read the code and map it against public
+	implementations of the algorithms used. If this seems unlikely consider this: people live and die depending
+	on how well they understand their operations.
+      </p>
+
+      <p>
+	Developers do not risk their lives, users do: facing death,
+	users will gain the understanding they need to adapt the systems they use.
       </p>
 
       <p>
 	<strong>PrRule 3: State of the Art.</strong> New algorithms and attacks are published every day, and often
-	there is no time to wait for a patch that may not arrive. A software unable to adapt
+	there is no time to wait for a patch (that may not arrive). A software unable to adapt
 	die soon - sometime with its users.
       </p>
 	
       <p>
-	<strong>PrRule 4: Lightness.</strong> Cryptography software does not need a long and complicated code, an elegant kernel is better.
+	<strong>PrRule 4: Lightness.</strong> Cryptography does not need a long and complicated code, an elegant kernel is better.
 	Cryptography does not need hundred of library dependencies, just the essentials since each link can break the chain.
       </p>
 
       <p>
-	Breaking the compilation chain is only slightly better than breaking the security chain: in both cases the software
-	will be useless. Cumbersome software does not belong to the future.
+	Breaking the compilation chain is only slightly better than breaking the security chain: in both cases that software
+	is useless. Cumbersome software does not belong to the future.
       </p>
       
       <br>
@@ -116,18 +143,18 @@
 
       <p>
 	<strong>ThRule 1: no PRNG.</strong> Why should we condemn ourselves to endless pain tying our software with a PRNG?
-	Some systems have no access to entropy sources, if they need entropy it must be imported from outside. Some system have a weaknened PRNG,
-	a cryptographic backdoor very difficult to detect.
+	Some systems have no access to entropy sources, if they need entropy it must be imported from outside.
+	Some system have only weaknened PRNGs, a cryptographic backdoor very difficult to detect.
       </p>
 
       <p>
-	If our crypto system only encrypts data, it should not implement
-	nor provide a random data source. PRNG is an external module, just allow an easy way to import randomness into the program.
+	If our crypto system only encrypts data, it should not implement nor provide a random data source.
+	The PRNG is an external module, just allow an easy way to import randomness into the program.
       </p>
 
       <p>
 	<strong>ThRule 2: no Authentication.</strong> Why should an encryption system check if the provided passphrase is correct?
-	It is user's responsibility to provide the correct passphrase. Why should we make brute forcing easier for an attacker?
+	It is user's responsibility to provide a correct passphrase. Why making brute forcing easier for attackers?
       </p>
 
       <p>
@@ -136,13 +163,12 @@
       </p>
 
       <p>
-	When authentication of data can be achieved easily, it can be achieved using an external tool.
-	Otherwise it can not be achieved and who says the contrary is lying to you
-        <sup class="footnote"><span id="fn3r"></span><a href="#fn3">3</a></sup>.
+	When authentication of data can be achieved easily, it can be achieved using external means.
+	Otherwise it can not be achieved, and who says the contrary is lying to you<sup class="footnote"><span id="fn3r"></span><a href="#fn3">3</a></sup>.
       </p>
 
       <p>
-	<strong>ThRule 3: no Filesystem.</strong> It is the operating system that should provide filesystem facilities, not a crypto system.
+	<strong>ThRule 3: no Filesystem.</strong> It is the operating system that provides filesystem facilities, not a crypto system.
 	If a filesystem is needed, the user should be able to choose whatever filesystem he wants: we can not limit its possible uses.
       </p>
 

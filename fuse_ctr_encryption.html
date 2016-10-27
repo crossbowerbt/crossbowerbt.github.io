@@ -327,16 +327,37 @@ open_callback(const char *path, struct fuse_file_info *fi) {
 static int
 read_block_sequence(uint8_t *blocks, size_t size,
 		     uint64_t first_block_num) {
+    size_t ret = 0, count = 0;
+
     fseek(encrypted_fp, first_block_num * (BLOCK_SIZE), SEEK_SET);
-    return fread(blocks, 1, size, encrypted_fp);
+
+    do {
+        ret = fread(blocks + count, 1, size - count, encrypted_fp);
+        if(ret == -1) return ret;	
+
+        count += ret;
+    } while (count != size);
+
+    return count;
 }
 
 static int
 write_block_sequence(const uint8_t *blocks, size_t size,
 		     uint64_t first_block_num) {
+    size_t ret = 0, count = 0;
+
     fseek(encrypted_fp, first_block_num * (BLOCK_SIZE), SEEK_SET);
-    return fwrite(blocks, 1, size, encrypted_fp);    
+
+    do {
+        ret = fwrite(blocks + count, 1, size - count, encrypted_fp); 
+        if(ret == -1) return ret;	
+
+        count += ret;
+    } while (count != size);
+
+    return count;
 }
+
       </pre>
 
       <p>
@@ -351,9 +372,15 @@ write_block_sequence(const uint8_t *blocks, size_t size,
       </p>
       
       <pre>
+
 static int
 read_callback(const char *path, char *buf, size_t size,
 	      off_t offset, struct fuse_file_info *fi) {
+
+#ifdef DEBUG
+    fprintf(stderr, "read_callback(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
+	    path,  (int) buf, size,  offset,  (int) fi);
+#endif
     
     if (strcmp(path, "/" PLAIN_FILENAME) == 0) {
 
@@ -365,6 +392,7 @@ read_callback(const char *path, char *buf, size_t size,
 
 	if (offset + size > len) {
 	    size = len - offset;
+	    if(!size) return 0;
 	}
 
 	if(size > MAX_BLOCK_SEQUENCE_SIZE) {
@@ -377,13 +405,13 @@ read_callback(const char *path, char *buf, size_t size,
 	uint8_t blocks[MAX_BLOCK_SEQUENCE_SIZE + (BLOCK_SIZE)];
 
 	uint64_t first_block_num = offset / (BLOCK_SIZE);
-    	size_t seq_size = size;
+    	size_t seq_size = size + (offset % (BLOCK_SIZE));
 
 	/* fill extra bytes to obtain a sequence length
 	   which is a multiple of the block size */
 	
-	if(size % (BLOCK_SIZE) != 0)
-	    seq_size += (BLOCK_SIZE) - (size % (BLOCK_SIZE));
+	if((offset + size) % (BLOCK_SIZE) != 0)
+	    seq_size += (BLOCK_SIZE) - ((offset + size) % (BLOCK_SIZE));
 
 	/* read sequence of blocks */
 	
@@ -407,6 +435,7 @@ read_callback(const char *path, char *buf, size_t size,
 
     return -ENOENT;
 }
+	
       </pre>
 
       <p>
@@ -414,21 +443,27 @@ read_callback(const char *path, char *buf, size_t size,
       </p>
 
       <pre>
+
 static int
 write_callback(const char *path, const char *buf, size_t size,
 	       off_t offset, struct fuse_file_info *fi) {
+
+#ifdef DEBUG
+    fprintf(stderr, "write_callback(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
+	    path,  (int) buf, size,  offset,  (int) fi);
+#endif
 
     if (strcmp(path, "/" PLAIN_FILENAME) == 0) {
 
         off_t len = encrypted_stat.st_size - sizeof(nonce);
 
 	if (offset >= len) {
-	    return 0;
+	    return -1;
     	}
 
 	if (offset + size > len) {
 	    size = len - offset;
-	    if(!size) return 0;
+	    if(!size) return -1;
 	}
 
 	if(size > MAX_BLOCK_SEQUENCE_SIZE) {
@@ -441,13 +476,18 @@ write_callback(const char *path, const char *buf, size_t size,
     	uint8_t blocks[MAX_BLOCK_SEQUENCE_SIZE + (BLOCK_SIZE)];
 
 	uint64_t first_block_num = offset / (BLOCK_SIZE);
-    	size_t seq_size = size;
+    	size_t seq_size = size + (offset % (BLOCK_SIZE));
 
 	/* fill extra bytes to obtain a sequence length
 	   which is a multiple of the block size */
+	
+	if((offset + size) % (BLOCK_SIZE) != 0)
+	    seq_size += (BLOCK_SIZE) - ((offset + size) % (BLOCK_SIZE));
 
-	if(size % (BLOCK_SIZE) != 0)
-	    seq_size += (BLOCK_SIZE) - (size % (BLOCK_SIZE));
+#ifdef DEBUG
+        fprintf(stderr, "write_callback() params: seq_size=\"%d\", first_block=\"%d\"\n",
+	    seq_size, first_block_num);
+#endif
 
 	/* read sequence of blocks */
 	
@@ -456,7 +496,7 @@ write_callback(const char *path, const char *buf, size_t size,
 	    fprintf(stderr,
 		    "read_block_sequence(): read only %d out of %d bytes",
 		    ret, seq_size);
-	    return 0;
+	    return -1;
 	}
 
 	/* decrypt sequence of blocks */
@@ -478,7 +518,7 @@ write_callback(const char *path, const char *buf, size_t size,
 	    fprintf(stderr,
 		    "write_block_sequence(): written only %d out of %d bytes",
 		    ret, seq_size);
-	    return 0;
+	    return -1;
 	}
 
 	return size;
@@ -486,6 +526,7 @@ write_callback(const char *path, const char *buf, size_t size,
 
     return -ENOENT;
 }
+	
       </pre>
 
       <p>
@@ -664,15 +705,107 @@ ctr_xor_block(uint64_t block[BLOCK_BITS/64], const uint64_t block_key[BLOCK_BITS
       <h2>Usage</h2>
 
       <p>
-	TODO...
+	If you run the program without any arguments, an brief usage message will be displayed:
+      </p>
+
+      <pre>
+usage: ./monocrypt_ctr encrypted_file mount_point/ [-fsd]
+      </pre>
+
+      <p>
+	The tool only need an <em class="mono">encrypted_file</em> and a <em class="mono">mount_point/</em> to mount it.
+	The optional arguments are the standard fuse arguments to run a module in foreground, in a single thread or in debug mode;
+	you will use those only if you plan to modify the tool.
+      </p>
+
+      <p>
+	Before an encrypted file can be mounted, we have to create it. We use the <em class="mono">dd</em> command to create it
+	and fill it with random data:
+      </p>
+
+      <pre>
+$ dd if=/dev/urandom of=enc_file bs=16 count=4097
+      </pre>
+
+      <p>
+	We used a block size of 16 bytes since the program expects encrypted files with a length multiple of the encryption block size
+	(in this case 128 bits). With the previous command we create a storage of 4096 bytes (4Kb), plus the final header of 16 bytes.
+      </p>
+
+      <p>
+	Now we can mount the file using a passphrase of our choosing. Please remember this passphrase, because (as said in the manifesto)
+	the only way to distinguish a right passphrase from a wrong one is the decryption output.
       </p>
       
+      <pre>
+$ monocrypt_ctr enc_file mnt/
+Insert passphrase: **********
+      </pre>
+
+      <p>
+	Now in the directory mount we should find a file called <em class="mono">plain</em> having the same size as the encrypted
+	file minus one block.
+      </p>
+
+      <pre>
+$ ls -l enc_file
+-rw-r--r-- 1 knoppix knoppix 65552 Oct  2 08:09 enc
+
+$ ls -l mnt/
+total 0
+-rwxrwxrwx 1 root root 65536 Dec 31  1969 plain
+      </pre>
+
+      <p>
+	Now we can write some data to it, for example a PDF file:
+      </p>
+
+      <pre>
+$ dd if=~/Documents/file.pdf of=mnt/plain conv=notrunc
+      </pre>
+
+      <p>
+	Note that we added the option <em class="mono">notrunc</em> since the output file has fixed size and can not be truncated.
+	The file is now readable with you PDF viewer, opening <em class="mono">mnt/plain</em>. The same can be applied to different
+	kind of files.
+      </p>
+
+      <p>
+	One of the most esoteric things you can do, is to create a filesystem on <em class="mono">mnt/plain</em>, to store
+	multiple files. If you choose a filesystem like <em class="mono">vfat</em> the storage will also be portable across
+	multiple operating systems.
+      </p>
+
+      <pre>
+# mkfs.vfat mnt/plain
+mkfs.fat 3.0.28 (2015-05-16)
+
+# mount mnt/plain mnt2/
+
+# echo "haha" >  mnt2/foo
+
+# ls -l mnt2/
+total 2
+-rwxr-xr-x 1 root root 5 Oct  2 09:10 foo
+      </pre>
+
+      <p>
+	As i said before this usage is secure only for static filesystems<sup class="footnote"><span id="fn1r"></span><a href="#fn1">1</a></sup>.
+	In the example we first created a vfat filesystem on <em class="mono">mnt/plain</em> and then mounted it on another mount point.
+	At this point you can add files to the filesystem to obtain a versatile storage, without complicating the source code of the tool,
+	since the service is provided by the operating system.
+      </p>
+
+      <p>
+	Finally, remember to unmount the encrypted file when you no longer need to access it.
+      </p>
+
       <br>
 
       <h2>Final considerations</h2>
 
       <p>
-	In less than 400 lines of code we obtained a program for transparent
+	In about 400 lines of code we obtained a program for transparent
 	file encryptions.
       </p>
 
