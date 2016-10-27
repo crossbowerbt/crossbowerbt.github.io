@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <title>Tweaking AES XTS mode</title>
+    <link href="css/main.css" rel="stylesheet" type="text/css">
+  </head>
+  
+  <body>
+    <article id="main">
+      <h1>Tweaking AES XTS mode</h1>
+      <h2>16 Oct 2016</h2>
+      <img class="center" src="images/xts-aes.png" alt="AES XTS mode schema"></img>
+
+      <p>
+	<strong>NOTE:</strong> This post is the third in a series
+	about the practical development of crypto systems. If you like
+	it, check back later to see if updates have been
+	published.
+      </p>
+
+      <p>
+	The <em>whys</em> of this post are explained in the
+	<a href="encryption_manifesto.html">Encryption Manifesto</a>,
+	the fundamentals of the <em>hows</em> in
+	<a href="fuse_ctr_encryption.html">Fuse CTR Encryption</a>.
+	The rest of the <em>hows</em> will be discussed in a future post.
+      </p>
+      
+      <hr width="100%" size="2">
+
+      <br>
+
+      <h2>Summary</h2>
+      
+      <p>
+	Whe have seen in a previous article how to build an encryption program
+	that follows our philosophy principles. However, that program was
+	not well suited for full disk (or partition) encryption for its use
+	of AES in CTR mode.
+      </p>
+
+      <p>
+	In this article we discuss a different mode of operation for AES,
+	called XTS, that is commonly used for full-disk encryption.
+	We will delve a bit into its history, reason about its strengths
+	and weaknesses. We will also try to derive a simpler version of
+	this mode, to be used in our encryption program,
+	that still maintain the same level of security.
+      </p>
+
+      <p>
+	This post is somewhat more theoric than the previous two,
+	but given the relative obscurity of XTS I found it necessary.
+	Still I hope you will enjoy the reading.
+      </p>
+
+      <br>
+
+      <h2>Legacy and History</h2>
+
+      <p>
+	Once upon a time...
+	Even-Mansour scheme and minimalist in cryptography.
+      </p>
+
+      <p>
+	Even-Mansour requires a random permutation to be used between
+	the two XORs, to break the linearity of the scheme.
+	Even a block cipher can be seen as a permutation function,
+	where the particular permutation is selected by the password.
+	Assuming the password is sufficiently "random",
+	we can use the block cipher instead of the random perputation
+	in Even-Mansour, in a first step to approach XTS.
+      </p>
+
+      <p>
+	From this consideration, we fast forward to 2007, where ...
+      </p>
+
+      <img class="center" src="images/xe_xex.png" alt="The XE and XEX constructions"></img>
+      
+      <p>
+	
+      </p>
+
+      <br>
+
+      <p>
+	Test footnote <sup class="footnote"><span id="fn2r"></span><a href="#fn2">2</a></sup>
+      </p>
+
+      <hr width="100%" size="2">
+
+      <p>
+	<span id="fn1"></span>
+	<small class="footnote"><strong>Footnote 1.</strong> See also: "On the pedagogical motives for esoteric writings." Melzer 2007 - <a href="https://pdf.yt/d/pLzAvzFb7e8sWjll">https://pdf.yt/d/pLzAvzFb7e8sWjll</a>. Return to <a href="#fn1r">article</a>.</small>
+      </p>
+
+      <p>
+	<span id="fn2"></span>
+	<small class="footnote"><strong>Footnote 2.</strong> One of the main causes of the widespread adoption of Truecrypt was its ability
+	to run and transfer data between every consumer operating system, combined with its easiness of use and flexibility.
+	It did also other things right, some of which will be mentioned in this manifesto.
+	Return to <a href="#fn2r">article</a>.</small>
+      </p>
+
+      <p>
+	<span id="fn3"></span>
+	<small class="footnote"><strong>Footnote 3.</strong> For example, how to implement proper data authentication in the case of full-disk encryption? See also: <a href="http://sockpuppet.org/blog/2014/04/30/you-dont-want-xts/">You don't want XTS</a>. Return to <a href="#fn3r">article</a>.</small>
+      </p>
+
+    </article>
+  </body>
+</html>
