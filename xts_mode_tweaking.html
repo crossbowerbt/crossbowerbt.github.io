@@ -14,18 +14,18 @@
       <img class="center" src="images/xts-aes.png" alt="AES XTS mode schema"></img>
 
       <p>
-	<strong>NOTE:</strong> This post is the third in a series
-	about the practical development of crypto systems. If you like
-	it, check back later to see if updates have been
-	published.
+		<strong>NOTE:</strong> This post is the third in a series
+		about the practical development of crypto systems. If you like
+		it, check back later to see if updates have been
+		published.
       </p>
 
       <p>
-	The <em>whys</em> of this post are explained in the
-	<a href="encryption_manifesto.html">Encryption Manifesto</a>,
-	the fundamentals of the <em>hows</em> in
-	<a href="fuse_ctr_encryption.html">Fuse CTR Encryption</a>.
-	The rest of the <em>hows</em> will be discussed in a future post.
+		The <em>whys</em> of this post are explained in the
+		<a href="encryption_manifesto.html">Encryption Manifesto</a>,
+		the fundamentals of the <em>hows</em> in
+		<a href="fuse_ctr_encryption.html">Fuse CTR Encryption</a>.
+		The rest of the <em>hows</em> will be discussed in a future post.
       </p>
       
       <hr width="100%" size="2">
@@ -35,25 +35,25 @@
       <h2>Summary</h2>
       
       <p>
-	Whe have seen in a previous article how to build an encryption program
-	that follows our philosophy principles. However, that program was
-	not well suited for full disk (or partition) encryption for its use
-	of AES in CTR mode.
+		Whe have seen in a previous article how to build an encryption program
+		that follows our philosophy principles. However, that program was
+		not well suited for full-disk (or partition) encryption since it was
+		based on AES in CTR mode.
       </p>
 
       <p>
-	In this article we discuss a different mode of operation for AES,
-	called XTS, that is commonly used for full-disk encryption.
-	We will delve a bit into its history, reason about its strengths
-	and weaknesses. We will also try to derive a simpler version of
-	this mode, to be used in our encryption program,
-	that still maintain the same level of security.
+		In this article we discuss a different mode of operation,
+		called XTS, that is commonly used for full-disk encryption.
+		We will delve a bit into its history, reason about its strengths
+		and weaknesses. We will also derive a simpler version of
+		this mode that still maintain the same level of security,
+		to be used in our encryption program.
       </p>
 
       <p>
-	This post is somewhat more theoric than the previous two,
-	but given the relative obscurity of XTS I found it necessary.
-	Still I hope you will enjoy the reading.
+		This post is somewhat more theoric than the previous two,
+		but given the relative obscurity of XTS I found it necessary.
+		Still I hope you will enjoy the reading.
       </p>
 
       <br>
@@ -61,54 +61,114 @@
       <h2>Legacy and History</h2>
 
       <p>
-	Once upon a time...
-	Even-Mansour scheme and minimalist in cryptography.
+		After the standardization of DES (Data Encryption Standard) in 1977,
+		many questions arised among security professionals regarding its
+		security. Its classified design elements were suspicious,
+		and its short key length (56 bits, or 55bits considering the complement
+		property of DES) made it possible for the US government to brute-force
+		keys in an acceptable time.
+	  </p>
+
+	  <p>
+		Instead of discouraging the analysis of the algorithm, this
+		secretiveness encourage an enormous academic research on DES,
+		aimed at uncovering its design secrets and at improving on its
+		weaknesses.
+	  </p>
+
+	  <p>
+		What interest us in this article, is a particular proposal by
+		Ronald Rivest, in 1984, to increase the strenght of DES against
+		brute force attacks. He proposed a variant of DES using two additional
+		keys, K1 and K2, each of 64bits (the block's length),
+		used to XOR the plaintext before DES encryption,
+		and the ciphertext after.
+		This variant was called DES-X.
+	  </p>
+
+	  <img class="center" src="images/des-x.svg" alt="DES-X algorithm"></img>
+
+	  <p>
+		This simple modification of DES has proven to be very reliable, and
+		gave rise to a series of studies that applied the same technique in
+		different contexts.
+	  </p>
+
+	  <p>
+		Even and Mansour abstracted the concept
+		and proposed in 1991 the "two key Even-Mansour scheme", creating
+		a very simple block cipher that was also provably secure. In a quest
+		to achieve a minimalist block cipher, their scheme was refined by
+		Dunkelman, Keller and Shamir to use a key of only half of the
+		original bits, but still maintaining the same level of security
+		<sup class="footnote"><span id="fn1r"></span><a href="#fn1">1</a></sup>.
+	  </p>
+	  
+      <p>
+		Even-Mansour requires a random permutation to be used between
+		the two XORs, to break the linearity of the scheme.
+		Particular kinds of block ciphers can be seen as families of
+		permutation functions, where the particular permutation is selected
+		by the key. Assuming the key is chosen at "random",
+		a block cipher can be used instead of the random perputation
+		in Even-Mansour. This is a basic notion to keep in mind to understand
+		XTS (for the formal details refer to the articles in the footnotes).
       </p>
 
       <p>
-	Even-Mansour requires a random permutation to be used between
-	the two XORs, to break the linearity of the scheme.
-	Even a block cipher can be seen as a permutation function,
-	where the particular permutation is selected by the password.
-	Assuming the password is sufficiently "random",
-	we can use the block cipher instead of the random perputation
-	in Even-Mansour, in a first step to approach XTS.
+		A following work, by Phillip Rogaway, described two generic
+		constructions: XE and XEX (xor-encrypt and xor-encrypt-xor), to
+		turn a generic block cipher into a particular kind of tweakable block
+		cipher, suitable for hard-disk encrytion
+		<sup class="footnote"><span id="fn2r"></span><a href="#fn2">2</a></sup>.
+	  </p>
+
+	  <img class="center" src="images/xe_xex.png" alt="The XE and XEX constructions"></img>
+	  
+	  <p>
+		This scheme was later standardized by NIST, with some modifies, under the name of XTS (XEX tweakable block cipher with ciphertext stealing). Many of the full-disk encryption products available today are based on this standard.
       </p>
 
-      <p>
-	From this consideration, we fast forward to 2007, where ...
-      </p>
-
-      <img class="center" src="images/xe_xex.png" alt="The XE and XEX constructions"></img>
+	  <img class="center" src="images/xts-aes.png" alt="AES XTS mode schema"></img>
       
       <p>
-	
+		After this overview on the history of XTS we can delve a bit deeper
+		into the algorithm, and discuss how to simplify it and how to
+		use it in our encryption program.
       </p>
 
+	  <h2>Tweaking XTS mode</h2>
+
+	  <p>
+		Before reading the rest of this article, take some minutes to read
+		"You don't want XTS", by Thomas & Erin Ptacek
+		<sup class="footnote"><span id="fn3r"></span><a href="#fn3">3</a></sup>.
+	  </p>
+		
       <br>
-
-      <p>
-	Test footnote <sup class="footnote"><span id="fn2r"></span><a href="#fn2">2</a></sup>
-      </p>
 
       <hr width="100%" size="2">
 
       <p>
-	<span id="fn1"></span>
-	<small class="footnote"><strong>Footnote 1.</strong> See also: "On the pedagogical motives for esoteric writings." Melzer 2007 - <a href="https://pdf.yt/d/pLzAvzFb7e8sWjll">https://pdf.yt/d/pLzAvzFb7e8sWjll</a>. Return to <a href="#fn1r">article</a>.</small>
+		<span id="fn1"></span>
+		<small class="footnote"><strong>Footnote 1.</strong> Orr Dunkelman, Nathan Keller, and Adi Shamir.
+		  <a href="http://eprint.iacr.org/2011/541.pdf">"Minimalism in Cryptography: The Even-Mansour Scheme Revisited"</a>
+		  (<a href="docs/crypto/even_mansour_revisited.pdf">mirror</a>).
+		  Return to <a href="#fn1r">article</a>.</small>
       </p>
 
       <p>
-	<span id="fn2"></span>
-	<small class="footnote"><strong>Footnote 2.</strong> One of the main causes of the widespread adoption of Truecrypt was its ability
-	to run and transfer data between every consumer operating system, combined with its easiness of use and flexibility.
-	It did also other things right, some of which will be mentioned in this manifesto.
-	Return to <a href="#fn2r">article</a>.</small>
+		<span id="fn2"></span>
+		<small class="footnote"><strong>Footnote 2.</strong> We won't explain here what exactly is a tweakable block cipher. For the formal details see:
+		  M. Liskov, R. Rivest, and D. Wagner.
+		  <a href="http://www.cs.colorado.edu/~jrblack/class/csci7000/f03/papers/tweak-crypto02.pdf">"Tweakable Block Ciphers"</a>
+		  (<a href="docs/crypto/tweak-crypto02.pdf">mirror</a>).
+		  Return to <a href="#fn2r">article</a>.</small>
       </p>
 
       <p>
-	<span id="fn3"></span>
-	<small class="footnote"><strong>Footnote 3.</strong> For example, how to implement proper data authentication in the case of full-disk encryption? See also: <a href="http://sockpuppet.org/blog/2014/04/30/you-dont-want-xts/">You don't want XTS</a>. Return to <a href="#fn3r">article</a>.</small>
+		<span id="fn3"></span>
+		<small class="footnote"><strong>Footnote 3.</strong> Thomas & Erin Ptacek, <a href="http://sockpuppet.org/blog/2014/04/30/you-dont-want-xts/">"You don't want XTS"</a>. Return to <a href="#fn3r">article</a>.</small>
       </p>
 
     </article>
