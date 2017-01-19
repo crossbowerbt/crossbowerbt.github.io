@@ -452,22 +452,17 @@
 	  </p>
 
 	  <p>
-		The <em>first</em> component N &in; {0,1}<sup>n</sup>, is a binary string of n bits,
-		like the key used for encryption. This value is derived from the <em>hard-disk sector number</em>,
-		encrypted by the narrow-block cipher using the encryption key:		
-	  </p>
-
-	  <p class="center">
-		N = E(K, sector_number)
+		The <em>first</em> component i &in; {0,1}<sup>n</sup>, is the <em>hard-disk sector number</em>,
+		represented as a binary string of n bits, inside of which there is the narrow-block to be encypted.
 	  </p>
 
 	  <p>
-		The <em>second</em> component i &in; [1..2<sup>n/2</sup>], is the <em>offset of the narrow-block</em>
-		(inside the hard-disk sector) that is going to be encrypted.
+		The <em>second</em> component j &in; [1..2<sup>n/2</sup>], is the <em>offset</em>,
+		inside the hard-disk sector,  of the narrow-block that is going to be encrypted.
 	  </p>
 
 	  <p>
-		The encryption of a narrow-block is carried out by the XEX algorithm in the following way:
+		The encryption of a narrow-block is carried out by XEX as follows:
 	  </p>
 
 	  <pre>
@@ -475,22 +470,22 @@
 		
 <strong>Input:</strong>
 <em>encryption key:</em> K &in; {0,1}<sup>n</sup>
-<em>sector number:</em> S &in; {0,1}<sup>n</sup>
-<em>offset:</em> i &in; [1..2<sup>n/2</sup>]
-<em>narrow-block plaintext:</em> P<sub>i</sub> &in; {0,1}<sup>n</sup>
+<em>sector number:</em> i &in; {0,1}<sup>n</sup>
+<em>offset inside the sector:</em> j &in; [1..2<sup>n/2</sup>]
+<em>narrow-block plaintext:</em> P<sub>j</sub> &in; {0,1}<sup>n</sup>
 
 <strong>Output:</strong>
-<em>narrow-block ciphertext:</em> C<sub>i</sub> &in; {0,1}<sup>n</sup>
+<em>narrow-block ciphertext:</em> C<sub>j</sub> &in; {0,1}<sup>n</sup>
 
 <strong>Procedure:</strong>
 <em>let</em> &alpha; <em>be the ???characteristic??? (maybe should talk about this before, and just use 2 here...) (NO: primitive polynomial used to represent) the finite field, containing 2<sup>n</sup> elements, inside of which we operate.</em>
 
-N = E(K, S)
-&Delta; = N * &alpha;<sup>i</sup>
+N = E(K, i)
+&Delta; = N * &alpha;<sup>j</sup>
 
-C<sub>i</sub> = E(K, P<sub>i</sub> &oplus; &Delta;) &oplus; &Delta;
+C<sub>j</sub> = E(K, P<sub>j</sub> &oplus; &Delta;) &oplus; &Delta;
 
-return C<sub>i</sub>
+return C<sub>j</sub>
 	  </pre>
 
 	  <!-- continue here -->
