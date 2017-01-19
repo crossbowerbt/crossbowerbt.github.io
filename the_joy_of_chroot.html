@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <title>The Joy of Chroot</title>
+    <link href="css/main.css" rel="stylesheet" type="text/css">
+	<meta name="description" content="Creation of chroot environments">
+	<meta name="keywords" content="chroot,security,linux,openbsd,pledge">
+	<meta name="author" content="Emanuele Acri crossbower">
+
+	<link rel="stylesheet" href="scripts/highlight/styles/default.css">
+	<script src="scripts/highlight/highlight.pack.js"></script>
+	<script>hljs.initHighlightingOnLoad();</script>
+  </head>
+
+  <body>
+    <article id="main">
+      <h1>The Joy of Chroot</h1>
+      <h2>01 Jan 2017</h2>
+	  <img class="center" src="images/walnut.jpg" alt="Walnut"></img>
+
+      <p>
+		The need for simple, deployable environments, indipendent from the particular
+		flavour of the underlying operating system, in recent years gave rise to a
+		multitude of mechanism with different levels of abstraction.
+      </p>
+
+	  <p>
+		It is now very easy to completely virtualize a machine, using systems like
+		VirtualBox, kvm, or even XEN. It wasn't so easy before.
+		And yet there are shortcomings: these technologies require complex
+		infrastructures and modified kernels to run, and they produce cumbersome images
+		to manipulate and transfer.
+	  </p>
+
+	  <p>
+		On the other side there are technologies like docker, that requires much
+		less resources from the host machine, but still introduce much complexity
+		compared to a vanilla OS installation.
+		They also require special kernel interfaces, such as cgroupfs, to work correctly.
+	  </p>
+
+	  <p>
+		I am not against any of these technologies, but still I am amazed at the
+		complexity involved in the seemingly simple task which is virtualizing an
+		environment (I'm leaving the definition of the task very general here).
+	  </p>
+
+	  <p>
+		Unix has been around since the 70s, and it seems very strange to me that only in
+		recent years we have found the key to solve this problem.
+		Surely the problem also arose in the past, and somehow the people of the past
+		found a way around it.
+	  </p>
+
+	  <h2>Bare Bones Chroot</h2>
+
+      <p>
+		And here we came to chroot. This mechanism is very old: the system call
+		on which it relies was was introduced in Unix System 7 in 1979, and adopted
+		by BSD in 1982, and is now virtually supported by every unix-like system
+		in existence.
+	  </p>
+
+	  <p>
+		Chroot is based on a very simple concept: since Unix is heavily file oriented
+		(an extreme case is Plan 9) it is possible to isolate an environment by
+		simply re-basing its root directory.
+	  </p>
+
+	  <p>
+		What I claim here is that by using chroot (together with
+		standard OS mechanisms) it is possible to obtain much more than
+		what is currently assumed and to solve the "isolated environment" problem
+		for a variety of cases. We will see how to limit the CPU and disk
+		usage of the environment, and what level of security and isolation we may obtain.
+	  </p>
+
+	  <p>
+		Even if you will never use these technologies, but opt for
+		newer and (according to some) more user-friendly mechanisms, I think
+		you will still learn some things of your operating system by
+		reading this article.
+	  </p>
+
+	  <h3>Setting Up a Basic Chroot Environment</h3>
+
+	  <p>
+		The guidelines we must keep in mind in creating an isolated environment
+		with chroot are very simple:
+		<ul>
+		  <li>The environment is created to run few, carefully selected, programs.</li>
+		  <li>The environment must include only the strictly required dependencies of these programs.</li>
+		</ul>
+	  </p>
+
+	  <p>
+		Since chroot requires a directory to be used as new root, an initial
+		step is to create this directory and a few additional subdirectories, to
+		form the skeleton of the new environment. You can use or customize the
+		following script to initialize your environment:
+	  </p>
+
+	  <pre><code class="bash">
+#!/bin/bash
+
+#
+# Initialized a directory to be used 
+# as a skelethon for a chrooted environment.
+#
+# Run as root.
+#
+# Usage: initialize_chroot.sh [directory]
+#
+
+set -e
+
+rootdir="$1"
+
+subdirs=(
+        dev etc proc sys tmp
+
+        bin sbin
+        lib lib64
+
+        usr/bin
+        usr/lib
+        usr/lib64
+
+        var/run
+        var/log
+        var/lib
+)
+
+# create root directory if it doesn't exists
+mkdir -p "$rootdir"
+
+# create subdirectories
+for subdir in "${subdirs[@]}"; do
+        mkdir -p "$rootdir/$subdir"
+done
+
+# set permissions for certain subdirectories
+chmod 1777 "$rootdir/tmp"
+	  </code></pre>
+
+	  <p>
+		Suppose you want to create your environment inside a directory "test-chroot",
+		you can just call the previous script with the directory's name as a parameter:
+	  </p>
+
+	  <pre><code class="nohighlight">
+root@localhost# ./initialize_chroot.sh test-chroot
+
+root@localhost# tree test/
+test/
+|-- bin
+|-- dev
+|-- etc
+|-- lib
+|-- lib64
+|-- proc
+|-- sbin
+|-- sys
+|-- tmp
+|-- usr
+|   |-- bin
+|   |-- lib
+|   `-- lib64
+`-- var
+    |-- lib
+    |-- log
+    `-- run
+
+17 directories, 0 files
+	  </code></pre>
+
+	  <p>
+		We can now select the programs we want to run in the environment.
+		If these programs are binary compiled, we must include, in the strictly required
+		dependencies, the dynamic libraries these programs use.
+	  </p>
+
+	  <p>
+		Finding all these libraries is a very tedious work to do manually,
+		but we may write a simple script to do it for us:
+	  </p>
+
+	  <pre><code class="bash">
+#!/bin/bash
+
+#
+# Utility that recursively copies a program
+# and its library dependencies inside a directory
+# to be used as a chroot base.
+#
+# Run as root. you must provide the complete path for
+# the file to be copied.
+#
+# Usage: recursive_ldd.sh [file_path] [directory] 
+#
+
+set -e
+
+curfile="$1"
+rootdir="$2"
+
+destdir=`dirname "$curfile"`
+
+# create destination directory
+mkdir -p "$rootdir/$destdir"
+
+# set destination directory permissions and ownership
+chown --reference="$destdir" "$rootdir/$destdir"
+chmod --reference="$destdir" "$rootdir/$destdir"
+
+# copy file
+cp -rvp "$curfile" "$rootdir/$curfile"
+
+# is symbolic link?
+if [ -L "$curfile" ]; then
+
+        origfile=`readlink -f "$curfile"`
+        $0 "$origfile" "$rootdir" || true
+
+# if regular file, try to copy libraries
+elif [ -f "$curfile" ]; then
+
+        libraries=`ldd "$curfile" | egrep -o '/[^ ]+'`
+
+        for library in $libraries; do
+                $0 "$library" "$rootdir" || true
+        done
+
+fi
+	  </code></pre>
+
+	  <p>
+		This script distinguishes different types of files:
+		<ul>
+		  <li>If the file you want to add to the chroot is a directory, it is copied
+			preserving the original permissions of the files.</li>
+		  <li>If the file is a symbolic link, the script copies it and recurse over the link until
+			the original file is copied.</li>
+		  <li>If the file is an executable, the script extracts the list
+			of dynamic libraries the file relies on, and copies them recursively.</li>
+		</ul>
+	  </p>
+
+	  <p>
+		We can test its working by adding a simple command to the chroot environment:
+	  </p>
+
+	  <pre><code class="nohighlight">
+root@localhost# ./recursive_ldd.sh /bin/ls test-chroot
+[... OUTPUT REMOVED ...]
+
+root@localhost# tree test/
+test/
+|-- bin
+|   `-- ls
+|-- dev
+|-- etc
+|-- lib
+|-- lib64
+|   |-- ld-2.23.so
+|   |-- ld-linux-x86-64.so.2 -> ld-2.23.so
+|   |-- libattr.so.1 -> libattr.so.1.1.0
+|   |-- libattr.so.1.1.0
+|   |-- libc-2.23.so
+|   |-- libc.so.6 -> libc-2.23.so
+|   |-- libcap.so.2 -> libcap.so.2.22
+|   `-- libcap.so.2.22
+|-- proc
+|-- sbin
+|-- sys
+|-- tmp
+|-- usr
+|   |-- bin
+|   |-- lib
+|   `-- lib64
+`-- var
+    |-- lib
+    |-- log
+    `-- run
+
+17 directories, 9 files
+	  </code></pre>
+
+	  <p>
+		We should be able now to run the command inside the chroot:
+	  </p>
+
+	  <pre><code class="nohighlight">
+root@localhost# chroot test ls /lib64/
+ld-2.23.so  ld-linux-x86-64.so.2  libattr.so.1  libattr.so.1.1.0  libc-2.23.so  libc.so.6  libcap.so.2  libcap.so.2.22
+	  </code></pre>
+
+	  <h3>Running Complex Software Inside the Chroot</h3>
+
+	  <p>
+		The chroot we just created to run the "ls" command is very simple. It does not contains any configuration file,
+		does not need the proc filesystem or any devices in /dev/. We will see in this section how to gradually
+		introduce in our chroot more complex programs, with heterogeneous dependencies.
+	  </p>
+
+	  <p>
+		Since the simple act of discovering what dependencies a software requires is very intricate, we first
+		introduce a new script, that exploits the strace mechanism to list all the files successfully opened by the
+		program we want to isolate. We need to first run the program outside the chroot, to collect data about its
+		behaviour, and then deduce its dependecies from this data.
+	  </p>
+
+	  <pre><code class="bash">
+#!/bin/bash
+
+#
+# Extracts from a strace log the list of files successfully opened.
+# These files can be copied in the chroot base directory.
+#
+# You must already have a log file. You can obtain one with:
+# $ strace command_and_options 2>log.strace
+# 
+# Usage: strace_log_open_files.sh <strace_log_file>
+#
+
+set -e
+
+logfile="$1"
+
+prefixes_to_mark=(
+        /dev/
+        /proc/
+        /sys/
+)
+
+function mark_prefix {
+
+        # this functions marks problematic file prefixes
+        # (e.g. files in virtual filesystems)
+
+        local expr=`echo "^(${prefixes_to_mark[@]})" | tr ' ' '|'`
+
+        while read line; do
+                if echo "$line" | egrep "$expr" > /dev/null; then
+                        echo "!$line"
+                else
+                        echo "$line"
+                fi
+        done
+}
+
+cat "$logfile"             |
+        egrep '^open\('    | # select open syscalls
+        grep -v ' -1 '     | # exclude open failures
+        egrep -o '"[^"]+"' | # get first argument (filie path)
+        tr -d '"'          | # delete quote marks
+        sort               | # reorder files
+        uniq               | # delete duplicates
+        mark_prefix        | # mark problematic files
+        sort               | # re-sort for problematic files
+        cat
+	  </code></pre>
+
+	  <p>
+		An interesting example consists in chroot-ing the python interpreter:
+	  </p>
+
+	  <pre><code class="nohighlight">
+root@localhost# strace python3.5 2>log.strace
+>>> exit()
+
+root@localhost# ./strace_log_open_files.sh log.strace 
+/etc/inputrc
+/etc/ld.so.cache
+/home
+/lib64/libc.so.6
+/lib64/libdl.so.2
+/lib64/libm.so.6
+/lib64/libncursesw.so.5
+/lib64/libpthread.so.0
+/lib64/libutil.so.1
+/root/.python_history
+/usr/lib64/gconv/ISO8859-1.so
+/usr/lib64/gconv/gconv-modules
+/usr/lib64/libpython3.5m.so.1.0
+/usr/lib64/libreadline.so.6
+/usr/lib64/locale/en_US/LC_ADDRESS
+[... OUTPUT REMOVED ...]
+/usr/lib64/locale/en_US/LC_TIME
+/usr/lib64/python3.5/
+[... OUTPUT REMOVED ...]
+/usr/lib64/python3.5/site-packages
+/usr/share/locale/locale.alias
+/usr/share/terminfo/x/xterm
+	  </code></pre>
+
+	  <p>
+		We see that many of the files opened by the python interpreter are not dynamic libraries.
+		Many are python files, compiled (.pyc) or not (.py). There are also some configuration
+		files from /usr/share, altought they may be not strictly necessary.
+		If we copy these files inside the chroot, the python interpreter should run just fine:
+	  </p>
+
+	  <pre><code class="nohighlight">
+root@localhost# ./recursive_ldd.sh /usr/bin/python3.5 test-chroot
+[... OUTPUT REMOVED ...]
+
+root@localhost# ./recursive_ldd.sh /usr/lib64/python3.5/ test-chroot
+[... OUTPUT REMOVED ...]
+
+root@localhost# chroot test-chroot python3.5
+Python 3.5.2 (default, Oct 24 2016, 10:18:42) 
+[GCC 5.3.0] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+>>> exit()
+	  </code></pre>
+
+	  <p>
+		As you can see from the nice python prompt, it is relativery easy to run an interpreter
+		inside a chrooted environment. Now it is time for something more complex.
+	  </p>
+
+	  <p>
+		As an example we try to run a (relatively) simple database service inside the chroot.
+		We choose Redis, since we can start the server running a single binary.
+		We apply again the strace technique, to get a global view on what files are accessed
+		by the program:
+	  </p>
+
+	  <pre><code class="nohighlight">
+root@localhost# strace redis-server 2>log.strace
+4811:C 18 Dec 19:33:57.072 # Warning: no config file specified, using the default config. In order to specify a config file use redis-server /path/to/redis.conf
+4811:M 18 Dec 19:33:57.074 * Increased maximum number of open files to 10032 (it was originally set to 1024).
+                _._                                                  
+           _.-``__ ''-._                                             
+      _.-``    `.  `_.  ''-._           Redis 3.2.3 (00000000/0) 64 bit
+  .-`` .-```.  ```\/    _.,_ ''-._                                   
+ (    '      ,       .-`  | `,    )     Running in standalone mode
+ |`-._`-...-` __...-.``-._|'` _.-'|     Port: 6379
+ |    `-._   `._    /     _.-'    |     PID: 4811
+  `-._    `-._  `-./  _.-'    _.-'                                   
+ |`-._`-._    `-.__.-'    _.-'_.-'|                                  
+ |    `-._`-._        _.-'_.-'    |           http://redis.io        
+  `-._    `-._`-.__.-'_.-'    _.-'                                   
+ |`-._`-._    `-.__.-'    _.-'_.-'|                                  
+ |    `-._`-._        _.-'_.-'    |                                  
+  `-._    `-._`-.__.-'_.-'    _.-'                                   
+      `-._    `-.__.-'    _.-'                                       
+          `-._        _.-'                                           
+              `-.__.-'                                               
+
+4811:M 18 Dec 19:33:57.079 # Server started, Redis version 3.2.3
+[... OUTPUT REMOVED ...]
+^C4811:signal-handler (1482086038) Received SIGINT scheduling shutdown...
+
+root@localhost# ./strace_log_open_files.sh log.strace 
+!/dev/urandom
+!/proc/4811/stat
+!/proc/sys/net/core/somaxconn
+!/proc/sys/vm/overcommit_memory
+!/sys/devices/system/cpu/online
+!/sys/kernel/mm/transparent_hugepage/enabled
+/etc/ld.so.cache
+/etc/localtime
+/lib64/libc.so.6
+/lib64/libdl.so.2
+/lib64/libm.so.6
+/lib64/libpthread.so.0
+dump.rdb
+	  </code></pre>
+
+	  <p>
+		Listing the opened files with our script, we immediately note some lines marked, at the beginning, with an exclamation mark:
+		the script highlight for us the files residing in virtual filesystem, that can not be directly copied in
+		a chroot directory. In particular, we see that redis-server needs two virtual filesystems (/proc and /sys) plus a device
+		(/dev/urandom, to obtain pseudo-random data) mounted inside the chroot.
+	  </p>
+
+	  <p>
+		This should not alarm us, since it is very easy to prepare a chroot that satisfies all these requirements:
+	  </p>
+
+	  <pre><code class="nohighlight">
+root@localhost# ./initialize_chroot.sh redis-chroot
+
+root@localhost# mount -o bind /dev redis-chroot/dev/
+root@localhost# mount -t proc none redis-chroot/proc/
+root@localhost# mount -t sysfs none redis-chroot/sys/
+
+root@localhost# ./recursive_ldd.sh /usr/bin/redis-server redis-chroot/
+
+root@localhost# chroot test/ redis-server
+5396:C 18 Dec 18:51:13.413 # Warning: no config file specified, using the default config. In order to specify a config file use redis-server /path/to/redis.conf
+5396:M 18 Dec 18:51:13.415 * Increased maximum number of open files to 10032 (it was originally set to 1024).
+                _._                                                  
+           _.-``__ ''-._                                             
+      _.-``    `.  `_.  ''-._           Redis 3.2.3 (00000000/0) 64 bit
+  .-`` .-```.  ```\/    _.,_ ''-._                                   
+ (    '      ,       .-`  | `,    )     Running in standalone mode
+ |`-._`-...-` __...-.``-._|'` _.-'|     Port: 6379
+ |    `-._   `._    /     _.-'    |     PID: 5396
+  `-._    `-._  `-./  _.-'    _.-'                                   
+ |`-._`-._    `-.__.-'    _.-'_.-'|                                  
+ |    `-._`-._        _.-'_.-'    |           http://redis.io        
+  `-._    `-._`-.__.-'_.-'    _.-'                                   
+ |`-._`-._    `-.__.-'    _.-'_.-'|                                  
+ |    `-._`-._        _.-'_.-'    |                                  
+  `-._    `-._`-.__.-'_.-'    _.-'                                   
+      `-._    `-.__.-'    _.-'                                       
+          `-._        _.-'                                           
+              `-.__.-'                                               
+
+5396:M 18 Dec 18:51:13.416 # Server started, Redis version 3.2.3
+[... OUTPUT REMOVED ...]
+5396:M 18 Dec 18:51:15.103 # Redis is now ready to exit, bye bye...
+	  </code></pre>
+
+	  <p>
+		In general you can run any kind of program that uses a virtual filesystem in a chroot just mounting
+		the main virtual filesystems provided by linux. You can do this with the commands:
+	  </p>
+
+	  <pre><code class="nohighlight">
+mount -o bind /dev chroot-dir/dev/
+mount -t proc none chroot-dir/proc/
+mount -t sysfs none chroot-dir/sys/
+	  </code></pre>
+	  
+	  <p>
+		Or alternatively with:
+	  </p>
+
+	  <pre><code class="nohighlight">
+mount -o bind /dev chroot-dir/dev/
+mount -o bind /proc chroot-dir/proc/
+mount -o bind /sys chroot-dir/sys/
+	  </code></pre>
+
+	  <p>
+		The only difference is that in the first case, the proc and sys filesystems are mounted two
+		times in two different locations, while in the second case is the /proc directory (and the /sys directory)
+		that get mapped on a different path, regardless of the type filesystems it "contains".
+		The second case is thus more general than the first, and works in general for every type of filesystem.
+	  </p>
+
+	  <h2>Securing the Chroot Environment</h2>
+
+	  <p>
+		One of the most important aspects of running an isolated environment is its security and the
+		security of its host system. It this section we will consider the security of chroot, provide
+		guidelines to optimize it and look at the limitations of the mechanism.
+	  </p>
+
+	  <p>
+		We claim however that a chroot environment can be secure for a wide range of uses,
+		and that knowing the assumptions on which the mechanism relies
+		makes us able to choose between chroot and alternative technologies available today.
+	  </p>
+
+	  <h3>Escaping the Jail</h3>
+
+	  <p>
+		One of the main limitations of chroot, it that it is not designed to restrict
+		a program running with root privileges. This is pointed out clearly by the chroot(2)
+		man page:
+	  </p>
+
+	  <pre><code class="nohighlight">
+chroot() changes the root directory of the calling process to that specified in path. This directory will be used for pathnames beginning with /. The root directory is inherited by all children of the calling process.
+
+Only a privileged process (Linux: one with the CAP_SYS_CHROOT capability) may call chroot().
+
+This call changes an ingredient in the pathname resolution process and does nothing else. In particular, it is <strong>not intended to be used for any kind of security purpose, neither to fully sandbox a process nor to restrict filesystem system calls</strong>.
+
+In the past, chroot() has been used by daemons to restrict themselves prior to passing paths supplied by untrusted users to system calls such as open(2). However, if a folder is moved out of the chroot directory, an attacker can exploit that to get out of the chroot directory as well. The easiest way to do that is to chdir(2) to the to-be-moved directory, wait for it to be moved out, then open a path like ../../../etc/passwd.
+
+A slightly trickier variation also works under some circumstances if chdir(2) is not permitted. If a daemon allows a "chroot directory" to be specified, that usually means that if you want to prevent remote users from accessing files outside the chroot directory, you must ensure that folders are never moved out of it.
+
+This call does not change the current working directory, so that after the call '.' can be outside the tree rooted at '/'.
+
+In particular, the superuser can escape from a "chroot jail" by doing:
+
+    mkdir foo; chroot foo; cd ..
+
+This call does not close open file descriptors, and such file descriptors may allow access to files outside the chroot tree.
+	  </code></pre>
+
+	  <p>
+		Although, as the manual says, chroot is not intended to be used for any kind of security purpose,
+		it may be nevertheless used in this way by a careful configuration of the chroot environment.
+	  </p>
+
+	  <p>
+		As pointed out by the manual, a particular security problem arise when the chrooted program is able to break out of the
+		chroot base directory, and access the complete filesystem. The manual suggest a way to do this:
+	  </p>
+
+	  <pre><code class="nohighlight">
+mkdir foo; chroot foo; cd ..
+	  </code></pre>
+
+	  <p>
+		This may have worked in the past, but at the moment the chroot also changes its working directory by default
+		(you need to provide the option <em>--skip-chdir</em> to revert to the old behaviour),
+		to prevent this particular security problem. You can check the order of the system calls in the chroot program, using strace:
+	  </p>
+
+	  <pre><code class="nohighlight">
+root@localhost# strace chroot test /bin/bash
+[... OUTPUT REMOVED ...]
+chroot("test/")                         = 0
+chdir("/")                              = 0
+execve("/bin/bash", ["/bin/bash", "-i"], [/* 45 vars */]) = 0
+[... OUTPUT REMOVED ...]
+	  </code></pre>
+
+	  <p>
+		As you can see, first the root directory is changed with a chroot(2) system call, then the working directory
+		of the chroot program is rebased to the new root directory with a chdir(2) call, and only then the requested program is executed with
+		an execve(2) call. In the shell spawned by this sequence of calls a simple <em>"cd .."</em> is not sufficient to break free.
+	  </p>
+
+	  <p>
+		We mentioned the previous case to give an example of how a program may escape a chroot environment.
+		In general these are the ways a program may use to escape the chroot:
+		<ol>
+		  
+		  <li>Use a <b>file descriptor</b> that points to a file outside the chroot, to access
+			files outside the chroot.<br></li>
+		  
+		  <li> Use a <b>raw disk device</b> to access the main filesystem, thereby doing
+			pretty much anything you like to the system.<br></li>
+
+		  <li> Use the <b>proc filesystem</b> to read and write <b>/dev/mem</b> and modify kernel memory,
+			or to access other programs running outside the chroot.<br></li>
+
+		  <li> Find a carelessly-left hard link that leads outside the
+			jail (though <b>symbolic</b> links don't escape jail, <b>hard</b>
+			links do).<br></li>
+
+		  <li> Use <b>ptrace</b> to trace a process living outside the jail.
+			We may be able to modify this program to do our bad stuff on our behalf.<br></li>
+
+		</ol>
+		This list is a (slightly) revised version of the one found in an excellent article by Steve Friedl
+		<sup class="footnote"><span id="fn1r"></span><a href="#fn1">1</a></sup>.
+	  </p>
+
+	  <p>
+		We can avoid most of these techniques by simply running all the processes
+		in the chroot environment with unprivileged user and group permissions.
+		The chroot command allows you to specify a user and a group for the program to run:
+	  </p>
+
+	  <pre><code class="nohighlight">
+--userspec=USER:GROUP
+    specify user and group (ID or name) to use
+	  </code></pre>
+
+	  <p>
+		Note hovewer that this is not enough: as correctly stated by Friedl, an unprivileged
+		program inside the chroot may <strong>still be able to ptrace(2) a process outside the chroot</strong>
+		running as the same user. Using ptrace it is possible to rewrite the memory of
+		a process, to make it do completely different operations <sup class="footnote"><span id="fn2r"></span><a href="#fn2">2</a></sup>.	
+	  </p>
+
+	  <p>
+		The most important solution to this is to create a dedicated user and group for the processes we want
+		to run inside the chroot, so that they may not attach to a process outside.
+		This will also be useful to limit the resources a chroot environment may consume,
+		as we will see later.
+	  </p>
+
+	  <p>
+		We may also consider running the chroot in a different partition, to avoid hard-links
+		to main filesystem files. This partition may also reside on a single file inside the main
+		partition, if you do not want to change the disk partition table. Having a separated
+		partition also allow us to mount it with the following options:
+
+		<ul>
+		  <li><strong>nodev</strong>: The nodev mount option specifies that the filesystem cannot contain special devices: This is a security precaution. You don't want a user world-accessible filesystem like this to have the potential for the creation of character devices or access to random device hardware.</li>
+		  <li><strong>nosuid</strong>: The nosuid mount option specifies that the filesystem cannot contain set userid files. Preventing setuid binaries on a world-writable filesystem makes sense because there's a risk of root escalation or other awfulness there.</li>
+		</ul>
+
+		In particular, the nosuid option is valid in almost any case, while for the nodev option it depends on the program to isolate.
+		If possible both options should be used.
+	  </p>
+
+	  <p>
+		Regarding the proc and other virtual filesystems: we must avoid mounting them every time it is possible.
+		Even if a normal user can not use them to modify the host system, they still provide a lot of
+		valuable informations to an eventual attacker.
+	  </p>
+
+	  <p>
+		Finally, we must follow the principle of <strong>least permissions</strong> in setting the owner and
+		access permissions to the files contained in the chroot. By default all files and directories should be owned by
+		the root user and group, and have read-only permissions. Only the strictly required files should
+		have writable permissions: these depends on the program we run inside the chroot.
+	  </p>
+
+	  <p>
+		These are the main strategies used to secure a chroot environment. For finer details refers to Steve Friedl's article
+		cited above (which, in any case, is a good read). The article also cites other sources, such as the slides
+		by Bucsay Balazs <sup class="footnote"><span id="fn3r"></span><a href="#fn3">3</a></sup>, which are very interesting.
+	  </p>
+
+	  <p>
+		Bucsay Balazs also provides a tool called <strong>chw00t</strong>
+		<sup class="footnote"><span id="fn4r"></span><a href="#fn4">4</a></sup>,
+		to test the security of a chroot environment. You can use it to check if your configuration is vulnerable.
+	  </p>
+
+	  <p>
+		TODO: include permission setting script from other article.
+	  </p>
+
+	  <p>
+		TODO: to avoid binary modification, alter the above script to include SHA1 sums of
+		file that must not be compromised.
+		This is a tradeoff for programs that needs a wrapper to be chrooted (the chroot command is a wrapper).
+		If a program is able to chroot itself then the binary and the config files can live outside the
+		chroot and can not be directly modified by an attacker residing in the chroot.
+		On the other part, these programs, if not correctly programmed, may have weaknesses such as an open
+		file descriptor that points outside the chroot.
+		For this reason we prefer an hybrid approach, we use a wrapper (such as the chroot command) to run a binary
+		residing inside the chroot (this way we must not 100% trust the chroot binary) and to avoid modifications
+		of this binary or of other config files, we save in the script the hashes of the file that should not be modified
+		and check those (and files permissions) before running the command.
+		There may be a race condition vulnerability in this approach,
+		but if we assure that before the check all all the chrooted processes are killed, this problem is avoided
+		(we obviously trusts processes outside the chroot, since they are already outside the chroot).
+	  </p>
+
+	  <h3>Limit Resource Consumption</h3>
+
+	  <p>
+		An isolated environment is "isolated" also because it can not deprive the host system of all its resources.
+		These include processor time, RAM memory and disk memory. We will see in this section how to assure
+		these resources are not abused by the chroot environment.
+	  </p>
+	  
+      <br>
+
+      <hr width="100%" size="2">
+
+      <p>
+		<span id="fn1"></span>
+		<small class="footnote"><strong>Footnote 1.</strong> Steve Friedl.
+		  <a href="http://www.unixwiz.net/techtips/chroot-practices.html">"Best Practices for UNIX chroot() Operations"</a>.
+		  Return to <a href="#fn1r">article</a>.</small>
+      </p>
+
+      <p>
+		<span id="fn2"></span>
+		<small class="footnote"><strong>Footnote 2.</strong> Cymothoa is for instance a backdooring tool that
+		  to do exactly this. See the <a href="http://cymothoa.sourceforge.net/">cymothoa website</a>
+		  for more informations.
+		  Return to <a href="#fn2r">article</a>.</small>
+      </p>
+
+      <p>
+		<span id="fn3"></span>
+		<small class="footnote"><strong>Footnote 3.</strong> Bucsay Balazs. <a href="https://deepsec.net/docs/Slides/2015/Chw00t_How_To_Break%20Out_from_Various_Chroot_Solutions_-_Bucsay_Balazs.pdf">"Chw00t: How to break out from various chroot solutions"</a>
+		  (<a href="docs/chroot/Chw00t_How_To_Break%20Out_from_Various_Chroot_Solutions_-_Bucsay_Balazs.pdf">mirror</a>).
+		  Return to <a href="#fn3r">article</a>.</small>
+      </p>
+
+	  <p>
+		<span id="fn4"></span>
+		<small class="footnote"><strong>Footnote 4.</strong> Chw00t: chroot escape tool.
+		  <a href="https://github.com/earthquake/chw00t/">https://github.com/earthquake/chw00t/</a>.
+		  Return to <a href="#fn4r">article</a>.</small>
+	  </p>
+			
+    </article>
+  </body>
+</html>
