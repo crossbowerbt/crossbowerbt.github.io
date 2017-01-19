@@ -3,13 +3,13 @@
 
   <head>
     <meta http-equiv="content-type" content="text/html; charset=UTF-8">
-    <title>Tweaking AES XTS mode</title>
+    <title>Tweaking Tweakable AES XTS mode</title>
     <link href="css/main.css" rel="stylesheet" type="text/css">
   </head>
-  
+
   <body>
     <article id="main">
-      <h1>Tweaking AES XTS mode</h1>
+      <h1>Tweaking Tweakable AES XTS mode</h1>
       <h2>16 Oct 2016</h2>
       <img class="center" src="images/xts-aes.png" alt="AES XTS mode schema"></img>
 
@@ -27,13 +27,13 @@
 		<a href="fuse_ctr_encryption.html">Fuse CTR Encryption</a>.
 		The rest of the <em>hows</em> will be discussed in a future post.
       </p>
-      
+
       <hr width="100%" size="2">
 
       <br>
 
       <h2>Summary</h2>
-      
+
       <p>
 		Whe have seen in a previous article how to build an encryption program
 		that follows our philosophy principles. However, that program was
@@ -103,7 +103,7 @@
 		original bits, but still maintaining the same level of security
 		<sup class="footnote"><span id="fn1r"></span><a href="#fn1">1</a></sup>.
 	  </p>
-	  
+
       <p>
 		Even-Mansour requires a random permutation to be used between
 		the two XORs, to break the linearity of the scheme.
@@ -115,36 +115,398 @@
 		XTS (for the formal details refer to the articles in the footnotes).
       </p>
 
+	  <p>
+		Work on tweakable block ciphers.
+		<sup class="footnote"><span id="fn2r"></span><a href="#fn2">2</a></sup>.
+	  </p>
+
       <p>
 		A following work, by Phillip Rogaway, described two generic
 		constructions: XE and XEX (xor-encrypt and xor-encrypt-xor), to
 		turn a generic block cipher into a particular kind of tweakable block
 		cipher, suitable for hard-disk encrytion
-		<sup class="footnote"><span id="fn2r"></span><a href="#fn2">2</a></sup>.
+		<sup class="footnote"><span id="fn3r"></span><a href="#fn3">3</a></sup>.
 	  </p>
 
 	  <img class="center" src="images/xe_xex.png" alt="The XE and XEX constructions"></img>
-	  
+
 	  <p>
 		This scheme was later standardized by NIST, with some modifies, under the name of XTS (XEX tweakable block cipher with ciphertext stealing). Many of the full-disk encryption products available today are based on this standard.
       </p>
 
 	  <img class="center" src="images/xts-aes.png" alt="AES XTS mode schema"></img>
-      
+
       <p>
 		After this overview on the history of XTS we can delve a bit deeper
 		into the algorithm, and discuss how to simplify it and how to
 		use it in our encryption program.
       </p>
 
+	  <h2>Understanding XTS</h2>
+
+	  <p>
+		Before seeing how to simplify the XTS NIST standard a bit, we want to point at
+		some peculiarities that make XTS what it is. Actually we will base our discussion
+		on Rogaway's article<sup class="footnote"><span id="fn3r"></span><a href="#fn3">3</a></sup>,
+		since it is the basis for XTS.
+	  </p>
+
+	  <p>
+		To understand why XTS is particularly efficient when used to encrypt hard-disks,
+		we must know a bit of discrete matematics. In particular we need to understand
+		how to do arithmetic calculations, sums and products, on finite fields (or galois fields).
+		But first we also need to familiarize a little with finite fields.
+	  </p>
+
+	  <h3>Basic structure of finite fields</h3>
+
+	  <p>
+		Finite fields are mathematical structures of form (<strong>G</strong>, +, *),
+		where <strong>G</strong> is a set of elements, + is an operation
+		behaving like a sum, and * is an operation behaving like a product.
+	  </p>
+
+	  <p>
+		Since we want to be able to carry out calculations in <strong>G</strong>,
+		these operations must also satisfy a series of axioms, called field axioms:
+		<ol>
+		  <li><strong class="list-block">Closure for sum:</strong>if a, b &isin; <strong>G</strong>, then a + b &isin; <strong>G</strong>.</li>
+		  <li><strong class="list-block">Associativity for sum:</strong>if a, b, c &isin; <strong>G</strong>, then (a + b) + c = a + (b + c).</li>
+		  <li><strong class="list-block">Commutativity for sum:</strong>if a, b &isin; <strong>G</strong>, then a + b = b + a.</li>
+		  <li><strong class="list-block">Identity element for sum:</strong>exists 0 &isin; <strong>G</strong> such that a + 0 = a, for all a &isin; <strong>G</strong>.</li>
+		  <li><strong class="list-block">Inverse for sum:</strong>for each a &isin; <strong>G</strong>
+			exists an inverse element b &isin; <strong>G</strong>, such that a + b = 0.<br><br></li>
+
+		  <li><strong class="list-block">Closure for product:</strong>if a, b &isin; <strong>G</strong>, then a * b &isin; <strong>G</strong>.</li>
+		  <li><strong class="list-block">Associativity for product:</strong>if a, b, c &isin; <strong>G</strong>, then (a * b) * c = a * (b * c).</li>
+		  <li><strong class="list-block">Commutativity for product:</strong>if a, b &isin; <strong>G</strong>, then a * b = b * a.</li>
+		  <li><strong class="list-block">Identity element for product:</strong>exists 1 &isin; <strong>G</strong>, with 1 &ne; 0, such that a * 1 = a, for all a &isin; <strong>G</strong>.</li>
+		  <li><strong class="list-block">Inverse for sum:</strong>for each a &isin; <strong>G</strong>\{0},
+			exists an inverse element b &isin; <strong>G</strong>, such that a * b = 1.<br><br></li>
+
+		  <li><strong class="list-block">Distributivity:</strong>if a, b, c &isin; <strong>G</strong>, then a * (b + c) = a * b + a * c.</li>
+		</ol>
+	  </p>
+
+	  <p>
+		We included these axioms here as a reference, but we assume
+		the reader already know the basics of abstract algebra.
+		<sup class="footnote"><span id="fn4r"></span><a href="#fn4">4</a></sup>.
+	  </p>
+
+	  <p>
+		We must also specify what we mean by finite field: To be <em>"finite"</em> a field must
+		have a finite number of elements in its set <strong>G</strong>.
+	  </p>
+
+	  <p>
+		It has been demonstrated that all finite fields have a number of elements p<sup>n</sup>,
+		where p is a prime number, and n is a positive integer.
+	  </p>
+
+	  <p>
+		This property makes finite fields naturally suitable for computer applications, where
+		powers of two are very commons; for example, a 64-bits register can hold values
+		from 0 to 2<sup>64</sup>-1, in total 2<sup>64</sup> values, while AES manipulates blocks of 128 bits, for
+		a total of 2<sup>128</sup> values.
+	  </p>
+
+	  <h3>Arithmetic of finite fields</h3>
+
+	  <p>
+		Now, the definition of a field is not complete without the operations
+		that acts on the set; we must find a sum-like operation and a product-like
+		operation that satisfy the axioms for our finite fields.
+	  </p>
+
+	  <p>
+		The sum-operation is easy, and we have several candidates: we could use
+		the usual sum of integers, modulo the cardinality of |<strong>G</strong>|,
+		so that all results lie always inside <strong>G</strong>; for |<strong>G</strong>| = 3,
+		some examples of sums are: 1 + 1 (mod 3) = 2, and 2 + 2 (mod 3) = 1.
+	  </p>
+
+	  <p>
+		Another candidate for the sum-operation is simply a binary XOR; this works
+		very well for fields with a power of two elements. If |<strong>G</strong>| = 8,
+		then the elements of <strong>G</strong> can be represented as 8-bits integers,
+		and the sum is the usual XOR between bytes: 2 + 7 = 00000010 ^ 00000111 = 00000101 = 5.
+	  </p>
+
+	  <p>
+		It is easy to prove that both these sum-operations satisfy the axioms 1-5,
+		being associative, commutative, with identity 0, and having an inverse.
+	  </p>
+
+	  <p>
+		For the product-operation things get a little harder. An easy case occurs when
+		|<strong>G</strong>| = p, with p a prime number; in this case we can just use
+		the common product, modulo p, in a way very similar to the first sum-operation
+		we proposed. Some examples, for p = 5, are 4 * 3 (mod 5) = 2, and 2 * 2 (mod 5) = 4.
+		If |<strong>G</strong>| = p then this operations satisfy axioms 6-10.
+	  </p>
+
+	  <p>
+		The general case, however, are finite fields with p<sup>n</sup> elements;
+		you can check by yourself that, for these fields, the product module |<strong>G</strong>|
+		no longer works: try finding an inverse for 2 in a field with 2<sup>2</sup> = 4 elements.
+	  </p>
+
+	  <p>
+		Maintaining the intuition that operations should be modulo some entity,
+		it is possible to choose a different type of entity to act like a prime number
+		for different product operation.
+	  </p>
+
+	  <p>
+		One of the most interesting insights you can learn from Galois Theory is
+		that for p<sup>n</sup> finite fields, there exists particular kinds of polynomials
+		that behave like prime numbers:
+		we can use polynomial product, modulo one of these polynomials, as our operation.
+		Together with XOR sum, they satisfy all field axioms.
+	  </p>
+
+	  <p>
+		For fields with p<sup>n</sup> elements The, type of polynomials we are interested in
+		are irreducible polynomials of degree n. A polynomial is <em>"irreducible"</em> if
+		it cannot be factored into nontrivial polynomials over the same field. For example
+		the polynomial x<sup>3</sup> + x<sup>2</sup> can be rewritten as x<sup>2</sup> * (x + 1),
+		and so it is not irreducible; instead the second factor (x + 1) is.
+	  </p>
+
+	  <p>
+		There are also particular kinds of irreducible polynomials, called primitive polynomials.
+		A polynomial is <em>primitive</em>, in a finite field with |<strong>G</strong>| = p<sup>n</sup>,
+		if:
+		<ul>
+		  <li>it has degree n;</li>
+		  <li>it has a root a &isin; <strong>G</strong>, such that {0, a<sup>0</sup>, a<sup>1</sup>, a<sup>2</sup>, ..., a<sup>p<sup>n</sup>-2</sup>} = <strong>G</strong>;
+		</ul>
+		We say that the root a is a <em>generator</em> for <strong>G</strong>.
+		Note that we are simplyfying a bit the definitions here; if you are interested in formal exposition
+		of these concepts, refer to a good abstract algebra book.
+	  </p>
+
+	  <p>
+		Why this mathematical <em>tour-de-force</em>? Because these concepts are very handy when applied
+		to 2<sup>n</sup> fields: if we use a primitive polynomial to take the modulo of the product operation
+		in these fields, we can use the powers of 2 to generate all the elements of the field.
+		This is exactly what XTS does in one of its steps.
+	  </p>
+
+	  <h3>The XTS mode of operation</h3>
+
+	  <p>
+		Consider a generic mass storage device, such as an hard-disk. These devices stores
+		data in sectors of a fixed length. Traditionally, for hard-disk, this sector length
+		was 512 bytes. Compare this value with the block size of a modern cipher, usually
+		128-bits or 16 bytes: it is necessary to use some mode of operation to fill the size gap.
+	  </p>
+
+	  <p>
+		Consider also how data is usually saved on these devices:
+		long sequences of data are written in consecutive sectors,
+		starting from a sector with a lower physical position
+		and ending with a sector with an higher position in the device.
+	  </p>
+
+	  <p>
+		A good mode of operation for these storage devices need to address
+		both these characteristics, and in an efficient manner. This is precisely
+		what XTS tries to do, and we will see here how.
+	  </p>
+
+	  <p>
+		If we call the storage device sector a <em>"wide-block"</em> and the
+		cipher block a <em>"narrow-block"</em>, the first thing we may say about
+		XTS is that it is a mode that transform a <em>narrow-block cipher</em>
+		into a <em>wide-block cipher</em>. For example it can transform an
+		AES 128-bits block cipher into a 512 bytes sector cipher.
+	  <p>
+
+	  <p>
+		We can see each wide-block as indipendent from the others, and concentrate
+		on the transition from a narrow-block to a wide-block. This is one
+		of the keys to understand XTS.
+	  </p>
+
+	  <h4>Overview of a wide-block encryption</h4>
+
+	  <p>
+		The images and the material exposed here are from Rogaway's article
+		"Evaluation of Some Blockcipher Modes of Operation"<sup class="footnote"><span id="fn5r"></span><a href="#fn5">5</a></sup>.
+	  </p>
+
+	  <p>
+		The following image represent the encryption of a wide-block (having full size) with XTS:
+	  </p>
+
+	  <img class="center border" src="images/wide_block_xts.png" alt="XTS wide-block encryption"></img>
+
+	  <p>
+		The wide-block plaintext P in subdivided in narrow-block plaintexts P<sub>0</sub>, P<sub>1</sub>, P<sub>2</sub>, P<sub>3</sub>,
+		each of them in encrypted separately. The output ciphertexts C<sub>0</sub>, C<sub>1</sub>, C<sub>2</sub>, C<sub>3</sub>
+		are then joined together to form the wide-block ciphertext C.
+	  </p>
+
+	  <p>
+		Assuming AES as the narrow-block cipher, this image may represent the encryption of an hard-disk
+		sector of size 16 bytes * 4 = 64 bytes.
+	  </p>
+
+	  <p>
+		The encription function E is represented as having three parameters: <em>i</em>, the wide-block number;
+		<em>j</em>, the narrow-block number inside the wide-block (represented in the image by the numbers 0-3);
+		<em>K</em>, the key used for encryption.
+	  </p>
+
+	  <p>
+		In a concrete application i may be the hard-disk sector number, j the narrow-block inside that sector,
+		and K the encryption key derived from user's passphrase.
+	  </p>
+
+	  <p>
+		Notice that without the parameters <em>i</em> and <em>j</em> each narrow-block in each wide-block
+		would be encrypted in the same identical manner. In this situation if two input plaintexts are
+		identical, then also their output ciphertexts would be identical, leading to an ECB encrytion scheme
+		(with all its weaknesses).
+	  </p>
+
+	  <p>
+		Instead <em>i</em> and <em>j</em> assure that even if two identical plaintexts
+		occur, in two different locations, their ciphertexts are different. These parameters are said to <em>"tweak"</em>
+		the underlying block cipher.
+	  </p>
+
+	  <p>
+		<strong>Side note:</strong> There could however be a different problem. Suppose that there exists combinations
+		of <em>i</em>, <em>j</em> and <em>i'</em>, <em>j'</em>,
+		with <em>i</em> &ne; <em>i'</em> and <em>j</em> &ne; <em>j'</em>, such that
+		for identical plaintexts the functions E<sub>i,j,K</sub>(P) and E<sub>i',j',K</sub>(P)
+		produce identical ciphertexts. This would defeat the benefits of the tweaks and may pose
+		security problems. Fortunately this occurrence is very rare, and a major point of the XTS security proof
+		relies on this. We will not delve into this proof, refer to Rogaway's article if you are interested.
+	  </p>
+
+	  <p>
+		Let's see now how the encryption is actually done.
+	  </p>
+
+	  <h4>XEX and powering-up constructions</h4>
+
+	  <p>
+		We have said before that XTS is a mode that transform a narrow-block cipher (e.g. AES)
+		into a wide-block cipher. We also said that a wide-block ciphertext is formed combining the
+		smaller narrow-block ciphertext, each produced separately from the others.
+	  </p>
+
+	  <p>
+		In fact each narrow-block plaintext is encrypted using a modified version of the chosen block cipher.
+		This modified block cipher is said to be a <em>tweaked</em> version of the original one.
+	  </p>
+
+	  <p>
+		A tweaked cipher is obtained by adding and combining some additional parameters,
+		beside the encryption key, to the original block cipher. These additional parameters are
+		called <em>tweaks</em> (sometimes <em>spices</em>).
+	  </p>
+
+	  <p>
+		The tweaked block cipher on which XTS is based, is a modified version of
+		the XEX algorithm proposed by Rogaway.
+	  </p>
+
+	  <p>
+		The basic block cipher can be described as:
+	  </p>
+
+	  <p class="center">
+		E : {0,1}<sup>n</sup> &Cross; {0,1}<sup>n</sup> &rarr; {0,1}<sup>n</sup>
+	  </p>
+
+	  <p>
+		It takes as input an encryption key K &in; {0,1}<sup>n</sup>, and a plaintext P &in; {0,1}<sup>n</sup>,
+		and to produces as output a ciphertext C &in; {0,1}<sup>n</sup>.
+	  </p>
+
+	  <p>
+		Starting from this signature, we can describe the XEX tweaked cipher adding only a tweak parameter:
+	  </p>
+
+	  <p class="center">
+		E' : {0,1}<sup>n</sup> &Cross; {0,1}<sup>n</sup> &Cross; T &rarr; {0,1}<sup>n</sup>
+	  </p>
+
+	  <p>
+		with tweak decomposable as:
+	  </p>
+
+	  <p class="center">
+		T = {0,1}<sup>n</sup> &Cross; [1..2<sup>n/2</sup>]
+	  </p>
+
+	  <p>
+		The tweak is composed by two components. These components are generic and can be used in many different ways,
+		but since we are dealing with a very specific application (hard-disk encryption) it is more useful to
+		anticipate how they are used in this context.
+	  </p>
+
+	  <p>
+		The <em>first</em> component N &in; {0,1}<sup>n</sup>, is a binary string of n bits,
+		like the key used for encryption. This value is derived from the <em>hard-disk sector number</em>,
+		encrypted by the narrow-block cipher using the encryption key:		
+	  </p>
+
+	  <p class="center">
+		N = E(K, sector_number)
+	  </p>
+
+	  <p>
+		The <em>second</em> component i &in; [1..2<sup>n/2</sup>], is the <em>offset of the narrow-block</em>
+		(inside the hard-disk sector) that is going to be encrypted.
+	  </p>
+
+	  <p>
+		The encryption of a narrow-block is carried out by the XEX algorithm in the following way:
+	  </p>
+
+	  <pre>
+<strong>Algorithm</strong> XEX
+		
+<strong>Input:</strong>
+<em>encryption key:</em> K &in; {0,1}<sup>n</sup>
+<em>sector number:</em> S &in; {0,1}<sup>n</sup>
+<em>offset:</em> i &in; [1..2<sup>n/2</sup>]
+<em>narrow-block plaintext:</em> P<sub>i</sub> &in; {0,1}<sup>n</sup>
+
+<strong>Output:</strong>
+<em>narrow-block ciphertext:</em> C<sub>i</sub> &in; {0,1}<sup>n</sup>
+
+<strong>Procedure:</strong>
+<em>let</em> &alpha; <em>be the ???characteristic??? (maybe should talk about this before, and just use 2 here...) (NO: primitive polynomial used to represent) the finite field, containing 2<sup>n</sup> elements, inside of which we operate.</em>
+
+N = E(K, S)
+&Delta; = N * &alpha;<sup>i</sup>
+
+C<sub>i</sub> = E(K, P<sub>i</sub> &oplus; &Delta;) &oplus; &Delta;
+
+return C<sub>i</sub>
+	  </pre>
+
+	  <!-- continue here -->
+
+	  <p>
+		<sup class="footnote"><span id="fn6r"></span><a href="#fn6">6</a></sup>.
+	  </p>
+	  
 	  <h2>Tweaking XTS mode</h2>
 
 	  <p>
 		Before reading the rest of this article, take some minutes to read
 		"You don't want XTS", by Thomas & Erin Ptacek
-		<sup class="footnote"><span id="fn3r"></span><a href="#fn3">3</a></sup>.
+		<sup class="footnote"><span id="fn7r"></span><a href="#fn7">7</a></sup>.
 	  </p>
-		
+
       <br>
 
       <hr width="100%" size="2">
@@ -166,11 +528,91 @@
 		  Return to <a href="#fn2r">article</a>.</small>
       </p>
 
-      <p>
+	  <p>
 		<span id="fn3"></span>
-		<small class="footnote"><strong>Footnote 3.</strong> Thomas & Erin Ptacek, <a href="http://sockpuppet.org/blog/2014/04/30/you-dont-want-xts/">"You don't want XTS"</a>. Return to <a href="#fn3r">article</a>.</small>
+		<small class="footnote"><strong>Footnote 3.</strong> Phillip Rogaway. <a href="http://www.cs.ucdavis.edu/~rogaway/papers/offsets.pdf">"Efficient Instantiations of Tweakable Blockciphers and Refinements to Modes OCB and PMAC"</a> (<a href="docs/crypto/rogaway_xe_xex.pdf">mirror</a>). Return to <a href="#fn3r">article</a>.</small>
+      </p>
+
+	  <p>
+		<span id="fn4"></span>
+		<small class="footnote"><strong>Footnote 4.</strong>  Weisstein, Eric W. "Finite Field." From MathWorld -- A Wolfram Web Resource (<a href="http://mathworld.wolfram.com/FiniteField.html">http://mathworld.wolfram.com/FiniteField.html</a>). Return to <a href="#fn4r">article</a>.</small>
+      </p>
+
+
+	  <p>
+		<span id="fn5"></span>
+		<small class="footnote"><strong>Footnote 5.</strong> Phillip Rogaway. <a href="http://web.cs.ucdavis.edu/~rogaway/papers/modes.pdf">"Evaluation of Some Blockcipher Modes of Operation"</a> (<a href="docs/crypto/rogaway_modes.pdf">mirror</a>). Return to <a href="#fn5r">article</a>.</small>
+      </p>
+
+	  <p>
+		<span id="fn6"></span>
+		<small class="footnote"><strong>Footnote 6.</strong> IEEE P1619™/D16. <a href="http://grouper.ieee.org/groups/1619/email/pdf00086.pdf">"Standard for Cryptographic Protection of Data on Block-Oriented Storage Devices"</a> (<a href="docs/crypto/pdf00086.pdf">mirror</a>). Return to <a href="#fn6r">article</a>.</small>
+      </p>
+
+      <p>
+		<span id="fn7"></span>
+		<small class="footnote"><strong>Footnote 7.</strong> Thomas & Erin Ptacek, <a href="http://sockpuppet.org/blog/2014/04/30/you-dont-want-xts/">"You don't want XTS"</a>. Return to <a href="#fn7r">article</a>.</small>
       </p>
 
     </article>
   </body>
 </html>
+
+<!--
+
+Notes:
+
+====
+
+Pag 54: modes.pdf
+
+Values:
+K <- key of 128 bits or 256 bits (for AES)
+i <- integer of 128 bits
+P <- plaintext of length N bits
+N <- length of the plaintext P in bits
+n <- block size in bits
+
+Algorithm XTS (K, i, P):
+
+m = ceil(|P|/n)-1
+
+P_0 || P_1 || ... || P_m <- P
+  where |P_j| = n for 0 <= j < m
+  and 1 <= |P_m| <= n
+
+for P_j in P_0 ... P_{m-1} do:
+  (non-final blocks)
+  C_j <- XEX2(K, i, j, P_j)
+
+if |P_m| = n:
+  (full final block)
+  C_m <- XEX2(K, i, j, P_m)
+else:
+  (partial final block)
+  C_m || D <- C_{m-1} where |C_m| = |P_m|
+  C_{m-1} <- XEX2(K, i, j, P_m || D)
+
+return C_0 ... C_m
+
+Algorithm XEX2 (K, i, j, P):
+K_1 || K_2 <- K where |K_1| = |K_2|
+L <- E(K_2, i)
+Delta <- L*Alpha^j
+return E(K_1, X xor Delta) xor Delta
+
+====
+
+XTS -> XEX2
+
+We have now a cipher that only uses XEX2 as the fundamental block.
+Let's visualize XEX2 a little better, using the image provided by rogaway
+in his paper:
+
+[IMAGE of XEX2]
+
+The tweak strategy used by XEX2, relies on the fact that 2 (seen as a polynomial)
+is a primitive element of the finite field GF(2^n). This means that all the
+non-zero elements of GF(2^n) can be obtained taking a power 2^i, for some positive integer i.
+
+-->
