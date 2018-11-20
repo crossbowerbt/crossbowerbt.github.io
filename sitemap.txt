@@ -11,3 +11,5 @@ https://crossbowerbt.github.io/index.html
 https://crossbowerbt.github.io/invisible_woman_axis_camera.html
 https://crossbowerbt.github.io/letdown.html
 https://crossbowerbt.github.io/router_odissey.html
+https://crossbowerbt.github.io/the_joy_of_chroot.html
+https://crossbowerbt.github.io/xts_mode_tweaking.html
