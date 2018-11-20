@@ -3,21 +3,30 @@
 
   <head>
     <meta http-equiv="content-type" content="text/html; charset=UTF-8">
-    <title>An Encryption Manifesto</title>
     <link href="css/main.css" rel="stylesheet" type="text/css">
+
+	<meta name="author" content="Emanuele Acri - Crossbower">
+
+	<title>An Encryption Manifesto</title>
+	<meta name="description" content="Principles to implement solid and versatile cryptography systems. Encryption in the hands of its users and developers. A manifesto." />
+	<meta name="keywords" content="encryption, manifesto, implement, cryptography, philosofy, pragmatic, versatile, solid" />
   </head>
   
   <body>
-    <article id="main">
-      <h1>An Encryption Manifesto</h1>
-      <h2>20 Sep 2016</h2>
+    <article>
+
+	  <header>
+		<h1>An Encryption Manifesto</h1>
+		<p>20 Sep 2016</p>
+	  </header>
+	  
       <img class="center" src="images/lock.png" alt="lock"></img>
 
       <p>
-	<strong>NOTE:</strong> This post is the first in a series
-	about the practical development of crypto systems. If you like
-	it, check back later to see if updates have been
-	published.
+		<strong>NOTE:</strong> This post is the first in a series
+		about the practical development of crypto systems. If you like
+		it, check back later to see if updates have been
+		published.
       </p>
       
       <hr width="100%" size="2">
@@ -27,21 +36,21 @@
       <h2>Motivations</h2>
       
       <p>
-	This manifesto was written to point at the deficiencies of a number of ideas now prevalent in encryption software.
-	It deals with practical difficulties that arise when using encryption programs, not with limitations of the underlying
-	mathematical theory.
+		This manifesto was written to point at the deficiencies of a number of ideas now prevalent in encryption software.
+		It deals with practical difficulties that arise when using encryption programs, not with limitations of the underlying
+		mathematical theory.
       </p>
 
       <p>
-	Developers can live an healthier life and produce flexible and long-lasting software if they only simplify some of their assumptions.
-	There is a sort "collective feeling" about what an encryption program should and should not do, that sometimes
-	approaches a form of cargo-cult.
+		Developers can live an healthier life and produce flexible and long-lasting software if they only simplify some of their assumptions.
+		There is a sort "collective feeling" about what an encryption program should and should not do, that sometimes
+		approaches a form of cargo-cult.
       </p>
 
       <p>
-	The dogmas of this cargo-cult limit the flexibility of the produced software. Breaking some of these dogmas,
-	we can create software that really adapts to the ever-changing necessities of its users: this is the key for
-	a lasting life.
+		The dogmas of this cargo-cult limit the flexibility of the produced software. Breaking some of these dogmas,
+		we can create software that really adapts to the ever-changing necessities of its users: this is the key for
+		a lasting life.
       </p>
 
       <br>
@@ -49,40 +58,40 @@
       <h2>Philosophical Principles</h2>
 
       <p>
-	<strong>Principle I: Security.</strong> The main objective of a cryptography system is to protect its users from
-	a wide range of attacks. This is really difficult, since in cryptography any technique that differentiates (just a little)
-	a crypto system from its intended behaviour is considered an attack.
+		<strong>Principle I: Security.</strong> The main objective of a cryptography system is to protect its users from
+		a wide range of attacks. This is really difficult, since in cryptography any technique that differentiates (just a little)
+		a crypto system from its intended behaviour is considered an attack.
       </p>
 	  
       <p>
-	We can not afford to sacrify security in exchange for a little user-friendliness, which most often isn't.
-	User friendlyness in encryption systems is much more than a nice graphical interface: it is <em><strong>flexibility</strong></em>.
-	Security remains, criteria for user-friendliness are always changing.
+		We can not afford to sacrify security in exchange for a little user-friendliness, which most often isn't.
+		User friendlyness in encryption systems is much more than a nice graphical interface: it is <em><strong>flexibility</strong></em>.
+		Security remains, criteria for user-friendliness are always changing.
       </p>
 
       <p>
-	<strong>Principle II: Flexibility.</strong> Knowing the future doesn't not belong to us: we hardly know how our software
-	is used today, predicting its future uses is impossible.
+		<strong>Principle II: Flexibility.</strong> Knowing the future doesn't not belong to us: we hardly know how our software
+		is used today, predicting its future uses is impossible.
       </p>
 
       <p>
-	Flexibility often requires doing less from a developer's point of view, to allow the user to fill in what he really needs.
-	In spite of this being simpler, developers always overdo things, limiting user's possibilities.
+		Flexibility often requires doing less from a developer's point of view, to allow the user to fill in what he really needs.
+		In spite of this being simpler, developers always overdo things, limiting user's possibilities.
       </p>
 
       <p>
-	Do not limit software flexibility: achieve the same interface in an <em><strong>esoteric</strong></em> way.
+		Do not limit software flexibility: achieve the same interface in an <em><strong>esoteric</strong></em> way.
       </p>
 
       <p>
-	<strong>Principle III: Esoterism.</strong> Users are different: novices need good default settings, advanced users
-	need systems that can be tailored to perfectly fit their work habits.
+		<strong>Principle III: Esoterism.</strong> Users are different: novices need good default settings, advanced users
+		need systems that can be tailored to perfectly fit their work habits.
       </p>
 
       <p>
-	There is not much to write about this, just learn from the past.
-	Write cryptography software like you are writing a great book: a book that reveals different meanings
-	to readers of different knowledge<sup class="footnote"><span id="fn1r"></span><a href="#fn1">1</a></sup>.
+		There is not much to write about this, just learn from the past.
+		Write cryptography software like you are writing a great book: a book that reveals different meanings
+		to readers of different knowledge<sup class="footnote"><span id="fn1r"></span><a href="#fn1">1</a></sup>.
       </p>
 
       <br>
@@ -90,51 +99,51 @@
       <h2>Pragmatic Rules</h2>
 
       <p>
-	<strong>PrRule 1: Portability.</strong> Information is hidden to be exchanged is a secure way, or to be stored for a long time
-	(also in a secure way).
+		<strong>PrRule 1: Portability.</strong> Information is hidden to be exchanged is a secure way, or to be stored for a long time
+		(also in a secure way).
       </p>
 
       <p>
-	We have no control on what systems other people uses (nor we have the right to interfere with their choices:
-	they may know more than us). We do not even control what systems will be available tomorrow and we ourselves will use.
+		We have no control on what systems other people uses (nor we have the right to interfere with their choices:
+		they may know more than us). We do not even control what systems will be available tomorrow and we ourselves will use.
       </p>
 
       <p>
-	A good crypto system must be so flexible to work (or potentially work) on every system available today<sup class="footnote"><span id="fn2r"></span><a href="#fn2">2</a></sup>.
-	This is also a strong basis for the future, the concrete way.
+		A good crypto system must be so flexible to work (or potentially work) on every system available today<sup class="footnote"><span id="fn2r"></span><a href="#fn2">2</a></sup>.
+		This is also a strong basis for the future, the concrete way.
       </p>
 
       <p>
-	<strong>PrRule 2: Simplicity of Understanding.</strong> The only true documentation of a cryptography system is its code.
-	No document can replace code: code is where parameters are chosen, where algorithms are implemented
-	(documentation merely tells algorithms' names), and where backdoors are hidden by hidden parties.
+		<strong>PrRule 2: Simplicity of Understanding.</strong> The only true documentation of a cryptography system is its code.
+		No document can replace code: code is where parameters are chosen, where algorithms are implemented
+		(documentation merely tells algorithms' names), and where backdoors are hidden by hidden parties.
       </p>
 
       <p>
-	Every user, novice or expert, should be able to read the code and map it against public
-	implementations of the algorithms used. If this seems unlikely consider this: people live and die depending
-	on how well they understand their operations.
+		Every user, novice or expert, should be able to read the code and map it against public
+		implementations of the algorithms used. If this seems unlikely consider this: people live and die depending
+		on how well they understand their operations.
       </p>
 
       <p>
-	Developers do not risk their lives, users do: facing death,
-	users will gain the understanding they need to adapt the systems they use.
+		Developers do not risk their lives, users do: facing death,
+		users will gain the understanding they need to adapt the systems they use.
       </p>
 
       <p>
-	<strong>PrRule 3: State of the Art.</strong> New algorithms and attacks are published every day, and often
-	there is no time to wait for a patch (that may not arrive). A software unable to adapt
-	die soon - sometime with its users.
+		<strong>PrRule 3: State of the Art.</strong> New algorithms and attacks are published every day, and often
+		there is no time to wait for a patch (that may not arrive). A software unable to adapt
+		die soon - sometime with its users.
       </p>
-	
+	  
       <p>
-	<strong>PrRule 4: Lightness.</strong> Cryptography does not need a long and complicated code, an elegant kernel is better.
-	Cryptography does not need hundred of library dependencies, just the essentials since each link can break the chain.
+		<strong>PrRule 4: Lightness.</strong> Cryptography does not need a long and complicated code, an elegant kernel is better.
+		Cryptography does not need hundred of library dependencies, just the essentials since each link can break the chain.
       </p>
 
       <p>
-	Breaking the compilation chain is only slightly better than breaking the security chain: in both cases that software
-	is useless. Cumbersome software does not belong to the future.
+		Breaking the compilation chain is only slightly better than breaking the security chain: in both cases that software
+		is useless. Cumbersome software does not belong to the future.
       </p>
       
       <br>
@@ -142,49 +151,49 @@
       <h2>Theoric Rules</h2>
 
       <p>
-	<strong>ThRule 1: no PRNG.</strong> Why should we condemn ourselves to endless pain tying our software with a PRNG?
-	Some systems have no access to entropy sources, if they need entropy it must be imported from outside.
-	Some system have only weaknened PRNGs, a cryptographic backdoor very difficult to detect.
+		<strong>ThRule 1: no PRNG.</strong> Why should we condemn ourselves to endless pain tying our software with a PRNG?
+		Some systems have no access to entropy sources, if they need entropy it must be imported from outside.
+		Some system have only weaknened PRNGs, a cryptographic backdoor very difficult to detect.
       </p>
 
       <p>
-	If our crypto system only encrypts data, it should not implement nor provide a random data source.
-	The PRNG is an external module, just allow an easy way to import randomness into the program.
+		If our crypto system only encrypts data, it should not implement nor provide a random data source.
+		The PRNG is an external module, just allow an easy way to import randomness into the program.
       </p>
 
       <p>
-	<strong>ThRule 2: no Authentication.</strong> Why should an encryption system check if the provided passphrase is correct?
-	It is user's responsibility to provide a correct passphrase. Why making brute forcing easier for attackers?
+		<strong>ThRule 2: no Authentication.</strong> Why should an encryption system check if the provided passphrase is correct?
+		It is user's responsibility to provide a correct passphrase. Why making brute forcing easier for attackers?
       </p>
 
       <p>
-	The only way to tell a correct passphrase from a wrong one should be the following: with a correct passphrase the user reads
-	back the original message, with an incorrect passphrase he gets only garbage.
+		The only way to tell a correct passphrase from a wrong one should be the following: with a correct passphrase the user reads
+		back the original message, with an incorrect passphrase he gets only garbage.
       </p>
 
       <p>
-	When authentication of data can be achieved easily, it can be achieved using external means.
-	Otherwise it can not be achieved, and who says the contrary is lying to you<sup class="footnote"><span id="fn3r"></span><a href="#fn3">3</a></sup>.
+		When authentication of data can be achieved easily, it can be achieved using external means.
+		Otherwise it can not be achieved, and who says the contrary is lying to you<sup class="footnote"><span id="fn3r"></span><a href="#fn3">3</a></sup>.
       </p>
 
       <p>
-	<strong>ThRule 3: no Filesystem.</strong> It is the operating system that provides filesystem facilities, not a crypto system.
-	If a filesystem is needed, the user should be able to choose whatever filesystem he wants: we can not limit its possible uses.
+		<strong>ThRule 3: no Filesystem.</strong> It is the operating system that provides filesystem facilities, not a crypto system.
+		If a filesystem is needed, the user should be able to choose whatever filesystem he wants: we can not limit its possible uses.
       </p>
 
       <p>
-	<strong>ThRule 4: no Copy.</strong> How could a crypto system be any good, if it requires the plaintext to be copied on an
-	unencrypted support to work on it?
+		<strong>ThRule 4: no Copy.</strong> How could a crypto system be any good, if it requires the plaintext to be copied on an
+		unencrypted support to work on it?
       </p>
 
       <p>
-	Plaintext should be unlocked in a transparent manner. Standard programs should be able
-	to work on the plaintext in a transparent manner (not even knowing it is encrypted data). Re-encryption of plaintext should
-	be transparent.
+		Plaintext should be unlocked in a transparent manner. Standard programs should be able
+		to work on the plaintext in a transparent manner (not even knowing it is encrypted data). Re-encryption of plaintext should
+		be transparent.
       </p>
 
       <p>
-	Any kind of data copy leads to failure.
+		Any kind of data copy leads to failure.
       </p>
 
       <br>
@@ -192,21 +201,21 @@
       <hr width="100%" size="2">
 
       <p>
-	<span id="fn1"></span>
-	<small class="footnote"><strong>Footnote 1.</strong> See also: "On the pedagogical motives for esoteric writings." Melzer 2007 - <a href="https://pdf.yt/d/pLzAvzFb7e8sWjll">https://pdf.yt/d/pLzAvzFb7e8sWjll</a>. Return to <a href="#fn1r">article</a>.</small>
+		<span id="fn1"></span>
+		<small class="footnote"><strong>Footnote 1.</strong> See also: "On the pedagogical motives for esoteric writings." Melzer 2007 - <a href="https://pdf.yt/d/pLzAvzFb7e8sWjll">https://pdf.yt/d/pLzAvzFb7e8sWjll</a>. Return to <a href="#fn1r">article</a>.</small>
       </p>
 
       <p>
-	<span id="fn2"></span>
-	<small class="footnote"><strong>Footnote 2.</strong> One of the main causes of the widespread adoption of Truecrypt was its ability
-	to run and transfer data between every consumer operating system, combined with its easiness of use and flexibility.
-	It did also other things right, some of which will be mentioned in this manifesto.
-	Return to <a href="#fn2r">article</a>.</small>
+		<span id="fn2"></span>
+		<small class="footnote"><strong>Footnote 2.</strong> One of the main causes of the widespread adoption of Truecrypt was its ability
+		  to run and transfer data between every consumer operating system, combined with its easiness of use and flexibility.
+		  It did also other things right, some of which will be mentioned in this manifesto.
+		  Return to <a href="#fn2r">article</a>.</small>
       </p>
 
       <p>
-	<span id="fn3"></span>
-	<small class="footnote"><strong>Footnote 3.</strong> For example, how to implement proper data authentication in the case of full-disk encryption? See also: <a href="http://sockpuppet.org/blog/2014/04/30/you-dont-want-xts/">You don't want XTS</a>. Return to <a href="#fn3r">article</a>.</small>
+		<span id="fn3"></span>
+		<small class="footnote"><strong>Footnote 3.</strong> For example, how to implement proper data authentication in the case of full-disk encryption? See also: <a href="http://sockpuppet.org/blog/2014/04/30/you-dont-want-xts/">You don't want XTS</a>. Return to <a href="#fn3r">article</a>.</small>
       </p>
 
     </article>
