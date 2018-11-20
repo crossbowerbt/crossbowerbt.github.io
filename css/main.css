@@ -106,6 +106,10 @@ span + small {
     padding: 0.3em;
 }
 
+.main-img {
+	max-width: 20em;
+}
+
 .mono {
     font-family: monospace;
 }
