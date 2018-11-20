@@ -9,8 +9,8 @@
 }
 
 body {
-    font-size: 1.5em;
-    line-height: 1.62em;
+    font-size: 1.3em;
+    line-height: 1.6em;
     font-family: FiraSans-Light;
     margin: 0;
     border: 0;
@@ -113,23 +113,11 @@ span + small {
 .center {
     display: block;
     margin: 1em auto;
-	text-align: center;
-}
-
-.text-center {
     text-align: center;
 }
 
 .border {
     border: 1px solid darkgrey;
-}
-
-.half {
-    width: 20em;
-}
-
-.third {
-    width: 14em;
 }
 
 .list-block {
